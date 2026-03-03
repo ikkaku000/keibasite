@@ -1,7 +1,7 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
-from .services import calc_scores
+from .services import calc_scores, estimate_pace
 
 
 def race_db(request):
@@ -10,7 +10,8 @@ def race_db(request):
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
-    pace = race.pace or "M"
+    entries = race.entries.all()
+    pace, pace_comment = estimate_pace(entries)
 
     rows = []
     for e in race.entries.all().order_by("number"):
@@ -33,7 +34,7 @@ def race_db(request):
             "grade": race.grade,
             "course": race.course,
             "pace": pace,
-            "pace_comment": race.pace_comment,
+            "pace_comment": pace_comment,
         },
         "rows": rows_sorted
     })

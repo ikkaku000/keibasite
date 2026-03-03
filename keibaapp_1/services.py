@@ -52,3 +52,16 @@ def calc_scores(entry: HorseEntry, pace: str) -> dict:
         "tempo": round(tempo, 2),
         "ev": round(ev, 2),
     }
+
+def estimate_pace(entries):
+    n_front = sum(
+        1 for e in entries
+        if e.run_style in ("NIGE", "SENKO")
+    )
+
+    if n_front >= 6:
+        return "H", "逃げ/先行が多くハイペース想定"
+    elif n_front >= 3:
+        return "M", "平均〜やや速め想定"
+    else:
+        return "S", "前が少なくスローペース想定"
