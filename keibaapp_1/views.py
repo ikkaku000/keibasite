@@ -1,3 +1,4 @@
+from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
 from .services import calc_scores
@@ -5,7 +6,7 @@ from .services import calc_scores
 
 def race_db(request):
     # MVP：最新のRaceを1件表示（今週の重賞を入れておけばOK）
-    race = Race.objects.order_by("-race_date").first()
+    race = get_current_race()
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
@@ -39,7 +40,7 @@ def race_db(request):
 
 
 def top3_db(request):
-    race = Race.objects.order_by("-race_date").first()
+    race = get_current_race()
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
@@ -79,3 +80,14 @@ def top3_db(request):
         },
         "rows": rows_sorted
     })
+
+def get_current_race():
+    today = now().date()
+
+    # 未来のレースで一番近いもの
+    upcoming = Race.objects.filter(race_date__gte=today).order_by("race_date").first()
+    if upcoming:
+        return upcoming
+
+    # なければ直近の過去レース
+    return Race.objects.filter(race_date__lt=today).order_by("-race_date").first()
