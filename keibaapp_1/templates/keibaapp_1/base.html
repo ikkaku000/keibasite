@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}競馬MVP{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    .badge { display:inline-block; padding:2px 8px; border:1px solid #aaa; border-radius:999px; font-size:12px; margin-right:6px; }
+    .meta { margin: 8px 0 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #f6f6f6; }
+    .top { font-weight: 700; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:16px; margin:16px 0; }
+    a { text-decoration: none; }
+    .nav { margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+
+  <div class="nav">
+    <a href="/">ランキング</a> / <a href="/top/">上位3頭</a>
+  </div>
+
+  {% block content %}{% endblock %}
+
+</body>
+</html>

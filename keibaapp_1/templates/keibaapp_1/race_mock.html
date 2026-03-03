@@ -1,0 +1,38 @@
+{% extends "keibaapp_1/base.html" %}
+
+{% block title %}ランキング - {{ race.name }}{% endblock %}
+
+{% block content %}
+  <h1>{{ race.name }}（ダミー表示）</h1>
+
+  <div class="meta">
+    <span class="badge">中央競馬</span>
+    <span class="badge">重賞 {{ race.grade }}</span>
+    <span class="badge">{{ race.course }}</span>
+    <span class="badge">想定ペース：{{ race.pace }}（{{ race.pace_comment }}）</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>順位</th><th>馬名</th><th>脚質</th><th>展開指数</th><th>期待値</th><th>想定オッズ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{% if forloop.first %}top{% endif %}">
+        <td>{{ r.rank }}</td>
+        <td>{{ r.horse_name }}</td>
+        <td>{{ r.style }}</td>
+        <td>{{ r.tempo|floatformat:2 }}</td>
+        <td><b>{{ r.ev|floatformat:2 }}</b></td>
+        <td>{{ r.odds }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;">
+    <a href="/top/">上位3頭の理由を見る →</a>
+  </p>
+{% endblock %}
