@@ -1,7 +1,7 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
-from .services import calc_scores, estimate_pace
+from .services import calc_scores, estimate_pace, convert_to_win_prob
 
 
 def race_db(request):
@@ -16,11 +16,14 @@ def race_db(request):
     rows = []
     for e in race.entries.all().order_by("number"):
         s = calc_scores(e, pace)
+        win_prob = convert_to_win_prob(s["tempo"])
+
         rows.append({
             "horse_name": e.horse_name,
             "style": e.get_run_style_display(),
             "tempo": s["tempo"],
             "ev": s["ev"],
+            "win_prob": win_prob,
             "odds": e.expected_odds,
         })
 

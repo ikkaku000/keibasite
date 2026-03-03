@@ -15,7 +15,7 @@
   <table>
     <thead>
       <tr>
-        <th>順位</th><th>馬名</th><th>脚質</th><th>展開指数</th><th>期待値</th><th>想定オッズ</th>
+        <th>順位</th><th>馬名</th><th>脚質</th><th>展開指数</th><th>期待値</th><th>勝率(%)</th><th>想定オッズ</th>
       </tr>
     </thead>
     <tbody>
@@ -26,6 +26,7 @@
         <td>{{ r.style }}</td>
         <td>{{ r.tempo|floatformat:2 }}</td>
         <td><b>{{ r.ev|floatformat:2 }}</b></td>
+        <td>{{ r.win_prob }}</td>
         <td>{{ r.odds }}</td>
       </tr>
       {% endfor %}

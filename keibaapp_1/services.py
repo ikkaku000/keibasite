@@ -65,3 +65,9 @@ def estimate_pace(entries):
         return "M", "平均〜やや速め想定"
     else:
         return "S", "前が少なくスローペース想定"
+    
+def convert_to_win_prob(tempo_score):
+    # 仮ロジック：指数を0-1の範囲に収める
+    prob = (tempo_score - 1.5) / 8
+    prob = max(0.03, min(prob, 0.40))
+    return round(prob * 100, 1)  # %
