@@ -1,7 +1,7 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
-from .services import calc_scores, estimate_pace, convert_to_win_prob
+from .services import calc_scores, estimate_pace, convert_to_win_prob, avg_agari_rank
 
 
 def race_db(request):
@@ -10,20 +10,23 @@ def race_db(request):
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
-    entries = race.entries.all()
-    pace, pace_comment = estimate_pace(entries)
+    entries = list(race.entries.all())
+    pace, pace_comment, front_ratio = estimate_pace(entries)
+
+    # フィールド（出走馬全体）の上がり平均を計算
+    agaris = [avg_agari_rank(e) for e in entries]
+    agaris = [a for a in agaris if a is not None]
+    field_agari_avg = sum(agaris) / len(agaris) if agaris else None
 
     rows = []
-    for e in race.entries.all().order_by("number"):
-        s = calc_scores(e, pace)
-        win_prob = convert_to_win_prob(s["tempo"])
-
+    for e in sorted(entries, key=lambda x: x.number):
+        s = calc_scores(e, pace, front_ratio, field_agari_avg)
         rows.append({
             "horse_name": e.horse_name,
             "style": e.get_run_style_display(),
             "tempo": s["tempo"],
+            "win_prob": s["win_prob"],
             "ev": s["ev"],
-            "win_prob": win_prob,
             "odds": e.expected_odds,
         })
 
