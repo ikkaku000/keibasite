@@ -51,27 +51,37 @@ def top3_db(request):
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
-    pace = race.pace or "M"
+    entries = list(race.entries.all())
+
+    # ⭐ ペース自動推定（front_ratio も返す版）
+    pace, pace_comment, front_ratio = estimate_pace(entries)
+
+    # ⭐ フィールド全体の上がり平均との差を作る
+    agaris = [avg_agari_rank(e) for e in entries]
+    agaris = [a for a in agaris if a is not None]
+    field_agari_avg = sum(agaris) / len(agaris) if agaris else None
 
     rows = []
-    for e in race.entries.all():
-        s = calc_scores(e, pace)
+    for e in entries:
+        s = calc_scores(e, pace, front_ratio, field_agari_avg)
         rows.append({
             "horse_name": e.horse_name,
             "style": e.get_run_style_display(),
             "tempo": s["tempo"],
+            "win_prob": s["win_prob"],  # %
             "ev": s["ev"],
             "odds": e.expected_odds,
         })
 
+    # EV順で上位3頭
     rows_sorted = sorted(rows, key=lambda r: r["ev"], reverse=True)[:3]
+
     for i, r in enumerate(rows_sorted, start=1):
         r["rank"] = i
-        # MVP：理由はテンプレ（後でDBに持たせてもOK）
         r["reasons"] = [
             f"想定ペース（{pace}）に脚質が噛み合う",
-            "近走の上がり傾向（入力値）を評価",
-            "人気薄なら期待値を少し加点（オッズ補正）",
+            "上がり傾向を“全体平均との差”で評価",
+            "期待値は勝率×オッズ（オッズ入力がある場合）",
         ]
         r["risks"] = [
             "馬場/展開が想定とズレると評価が変わる",
@@ -83,7 +93,7 @@ def top3_db(request):
             "grade": race.grade,
             "course": race.course,
             "pace": pace,
-            "pace_comment": race.pace_comment,
+            "pace_comment": pace_comment,
         },
         "rows": rows_sorted
     })
