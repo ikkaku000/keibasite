@@ -108,3 +108,7 @@ def get_current_race():
 
     # なければ直近の過去レース
     return Race.objects.filter(race_date__lt=today).order_by("-race_date").first()
+
+    #Topページ
+def top_page(request):
+    return render(request, "keibaapp_1/top.html")
