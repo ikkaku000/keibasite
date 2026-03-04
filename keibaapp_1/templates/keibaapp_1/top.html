@@ -1,42 +1,120 @@
 {% extends "keibaapp_1/base.html" %}
 
+{% block title %}競馬AI展開分析{% endblock %}
+
 {% block content %}
 
-<h1>競馬AI展開分析</h1>
+<section style="max-width: 920px; margin: 0 auto;">
+  <!-- HERO -->
+  <div style="padding: 18px 0 8px;">
+    <div class="badge">中央競馬</div>
+    <div class="badge">重賞特化</div>
+    <div class="badge">展開 × 期待値</div>
 
-<p>
-中央競馬の重賞レースを対象に<br>
-脚質・ペース・上がり傾向から<br>
-AIが展開を分析します。
-</p>
+    <h1 style="margin: 14px 0 8px; font-size: 34px; line-height: 1.2;">
+      競馬AI展開分析<br>
+      <span style="font-size: 18px; font-weight: 500; color: #444;">
+        脚質・ペース・上がり傾向から「得する馬」をランキング化
+      </span>
+    </h1>
 
-<hr>
+    <p style="margin: 10px 0 18px; color:#333;">
+      的中を煽らず、<b>回収率の考え方（期待値）</b>で判断材料を提供します。
+    </p>
 
-<h2>今週の無料分析</h2>
+    <!-- PRIMARY CTA -->
+    <div style="display:flex; gap: 12px; flex-wrap: wrap; margin: 10px 0 14px;">
+      <a href="/race/" style="display:inline-block; padding: 12px 16px; border:1px solid #111; border-radius: 10px; font-weight:700;">
+        ▶ 今週の無料：全頭ランキングを見る
+      </a>
+      <a href="/top/" style="display:inline-block; padding: 12px 16px; border:1px solid #aaa; border-radius: 10px;">
+        ▶ AI本命3頭を見る
+      </a>
+    </div>
 
-<p>
-今週の重賞レースの分析はこちら
-</p>
+    <div style="font-size: 13px; color:#666;">
+      ※まずは無料で中身を確認できます（登録不要）
+    </div>
+  </div>
 
-<a href="/race/" style="font-size:20px;">
-▶ 今週のランキングを見る
-</a>
+  <hr style="margin: 20px 0;">
 
-<br><br>
+  <!-- WHAT YOU GET -->
+  <section>
+    <h2 style="margin: 0 0 10px;">このサイトで分かること</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+      <div class="card">
+        <b>ペース想定</b>
+        <p style="margin:8px 0 0; color:#444; font-size:14px;">
+          逃げ/先行の割合から、スロー/平均/ハイを自動推定
+        </p>
+      </div>
+      <div class="card">
+        <b>展開指数</b>
+        <p style="margin:8px 0 0; color:#444; font-size:14px;">
+          脚質相性＋上がり傾向で“展開で得する馬”を点数化
+        </p>
+      </div>
+      <div class="card">
+        <b>勝率(%) / 期待値</b>
+        <p style="margin:8px 0 0; color:#444; font-size:14px;">
+          指数を勝率(%)に変換し、オッズと合わせて妙味を可視化
+        </p>
+      </div>
+    </div>
+  </section>
 
-<a href="/top/" style="font-size:20px;">
-▶ AI本命3頭を見る
-</a>
+  <hr style="margin: 20px 0;">
 
-<hr>
+  <!-- TRUST / HOW IT WORKS -->
+  <section>
+    <h2 style="margin: 0 0 10px;">なぜ信用できる？</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+      <div class="card">
+        <b>ロジックを隠さない</b>
+        <p style="margin:8px 0 0; color:#444; font-size:14px;">
+          “ブラックボックスAI”ではなく、評価の根拠を明示します。
+        </p>
+        <p style="margin:10px 0 0;">
+          <a href="/about/" style="font-weight:700;">▶ 分析ロジックを見る（推奨）</a>
+        </p>
+      </div>
 
-<h2>このサイトで分かること</h2>
+      <div class="card">
+        <b>煽らない（長く使える）</b>
+        <p style="margin:8px 0 0; color:#444; font-size:14px;">
+          的中を煽る予想ではなく、判断材料の提供に徹します。
+        </p>
+      </div>
+    </div>
+  </section>
 
-<ul>
-<li>展開予想</li>
-<li>脚質有利不利</li>
-<li>勝率予測</li>
-<li>期待値ランキング</li>
-</ul>
+  <hr style="margin: 20px 0;">
+
+  <!-- PRICING -->
+  <section>
+    <h2 style="margin: 0 0 10px;">有料会員（予定）</h2>
+    <div class="card">
+      <div style="display:flex; align-items: baseline; gap:10px; flex-wrap: wrap;">
+        <b style="font-size:18px;">月額プラン</b>
+        <span class="badge">他の重賞も見放題</span>
+      </div>
+      <ul style="margin:10px 0 0; padding-left: 18px; color:#333;">
+        <li>今週の無料以外の重賞（複数レース）を閲覧</li>
+        <li>上位馬の理由・リスクコメント強化</li>
+        <li>指数の改善・機能追加を優先反映</li>
+      </ul>
+
+      <div style="margin-top: 12px; font-size: 13px; color:#666;">
+        ※価格はテスト運用で調整予定。まずは無料分析を見て判断してください。
+      </div>
+    </div>
+  </section>
+
+  <div style="margin: 22px 0 10px; font-size: 12px; color:#777;">
+    免責：本サイトは投資助言ではありません。最終判断はご自身でお願いします。
+  </div>
+
+</section>
 
 {% endblock %}
