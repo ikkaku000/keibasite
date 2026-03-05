@@ -112,3 +112,7 @@ def get_current_race():
     #Topページ
 def top_page(request):
     return render(request, "keibaapp_1/top.html")
+
+    #Aboutページ
+def about_page(request):
+    return render(request, "keibaapp_1/about.html")
