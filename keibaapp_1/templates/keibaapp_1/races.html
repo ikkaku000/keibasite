@@ -1,0 +1,74 @@
+{% extends "keibaapp_1/base.html" %}
+
+{% block title %}重賞一覧{% endblock %}
+
+{% block content %}
+<section style="max-width: 980px; margin: 0 auto;">
+
+  <h1>重賞一覧</h1>
+  <p style="color:#666;">
+    見たいレースを選ぶと、そのレースの「全頭ランキング」「AI本命3頭」を表示します。
+  </p>
+
+  <hr style="margin: 18px 0;">
+
+  <h2>これからの重賞（直近）</h2>
+
+  {% if upcoming %}
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+      {% for r in upcoming %}
+        <div style="border:1px solid #e6e6e6; border-radius:14px; padding:14px; background:#fff;">
+          <div style="font-size:13px; color:#666;">{{ r.race_date }}</div>
+          <div style="font-weight:800; font-size:18px; margin:6px 0 4px;">{{ r.name }}</div>
+          <div style="color:#444; font-size:13px;">
+            {{ r.grade }} / {{ r.course }}
+            {% if r.track_condition %} / {{ r.track_condition }}{% endif %}
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+            <a href="/race/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #111; text-decoration:none; font-weight:700;">
+              ▶ 全頭ランキング
+            </a>
+            <a href="/top/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #999; text-decoration:none;">
+              ▶ AI本命3頭
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:#888;">これからの重賞がまだ登録されていません（/admin/ から Race を追加してください）。</p>
+  {% endif %}
+
+  <hr style="margin: 24px 0;">
+
+  <h2>最近の重賞（過去）</h2>
+
+  {% if recent %}
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+      {% for r in recent %}
+        <div style="border:1px solid #e6e6e6; border-radius:14px; padding:14px; background:#fafafa;">
+          <div style="font-size:13px; color:#666;">{{ r.race_date }}</div>
+          <div style="font-weight:800; font-size:18px; margin:6px 0 4px;">{{ r.name }}</div>
+          <div style="color:#444; font-size:13px;">
+            {{ r.grade }} / {{ r.course }}
+            {% if r.track_condition %} / {{ r.track_condition }}{% endif %}
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+            <a href="/race/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #111; text-decoration:none; font-weight:700;">
+              ▶ 全頭ランキング
+            </a>
+            <a href="/top/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #999; text-decoration:none;">
+              ▶ AI本命3頭
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:#888;">過去レースがありません。</p>
+  {% endif %}
+
+</section>
+{% endblock %}

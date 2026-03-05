@@ -6,7 +6,7 @@ from .services import calc_scores, estimate_pace, convert_to_win_prob, avg_agari
 
 def race_db(request):
     # MVP：最新のRaceを1件表示（今週の重賞を入れておけばOK）
-    race = get_current_race()
+    race = get_selected_or_current_race(request)
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
@@ -47,7 +47,7 @@ def race_db(request):
 
 
 def top3_db(request):
-    race = get_current_race()
+    race = get_selected_or_current_race(request)
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
 
@@ -109,6 +109,12 @@ def get_current_race():
     # なければ直近の過去レース
     return Race.objects.filter(race_date__lt=today).order_by("-race_date").first()
 
+def get_selected_or_current_race(request):
+    race_id = request.GET.get("race_id")
+    if race_id:
+        return get_object_or_404(Race, id=race_id)
+    return get_current_race()
+
     #Topページ
 def top_page(request):
     return render(request, "keibaapp_1/top.html")
@@ -116,3 +122,15 @@ def top_page(request):
     #Aboutページ
 def about_page(request):
     return render(request, "keibaapp_1/about.html")
+
+def races_page(request):
+    today = now().date()
+
+    upcoming = Race.objects.filter(race_date__gte=today).order_by("race_date")[:20]
+    recent = Race.objects.filter(race_date__lt=today).order_by("-race_date")[:20]
+
+    return render(request, "keibaapp_1/races.html", {
+        "upcoming": upcoming,
+        "recent": recent,
+        "today": today,
+    })
