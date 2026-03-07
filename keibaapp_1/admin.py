@@ -146,8 +146,14 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
 class HorseEntryInline(admin.TabularInline):
     model = HorseEntry
     extra = 18
-    fields = ("number", "gate", "horse_name", "jockey", "run_style", "expected_odds",
-              "last1_agari_rank", "last2_agari_rank", "last3_agari_rank")
+    fields = (
+    "number", "gate", "horse_name", "jockey",
+    "run_style", "expected_odds",
+    "last1_agari_rank", "last2_agari_rank", "last3_agari_rank",
+    "last1_field_size", "last1_corner4_pos",
+    "last2_field_size", "last2_corner4_pos",
+    "last3_field_size", "last3_corner4_pos",
+    )
     ordering = ("number",)
 
 

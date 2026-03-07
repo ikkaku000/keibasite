@@ -41,6 +41,14 @@ class HorseEntry(models.Model):
     last2_agari_rank = models.PositiveIntegerField(null=True, blank=True)
     last3_agari_rank = models.PositiveIntegerField(null=True, blank=True)
 
+    last1_field_size = models.PositiveIntegerField(null=True, blank=True)
+    last2_field_size = models.PositiveIntegerField(null=True, blank=True)
+    last3_field_size = models.PositiveIntegerField(null=True, blank=True)
+
+    last1_corner4_pos = models.PositiveIntegerField(null=True, blank=True)
+    last2_corner4_pos = models.PositiveIntegerField(null=True, blank=True)
+    last3_corner4_pos = models.PositiveIntegerField(null=True, blank=True)
+
     expected_odds = models.FloatField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

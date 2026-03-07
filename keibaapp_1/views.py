@@ -1,7 +1,7 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
-from .services import calc_scores, estimate_pace, convert_to_win_prob, avg_agari_rank
+from .services import calc_scores, estimate_pace, avg_agari_rank, display_run_style
 
 
 def race_db(request):
@@ -23,7 +23,8 @@ def race_db(request):
         s = calc_scores(e, pace, front_ratio, field_agari_avg)
         rows.append({
             "horse_name": e.horse_name,
-            "style": e.get_run_style_display(),
+            "style": display_run_style(s["run_style"]),
+            "corner4_index": s["corner4_index"],
             "tempo": s["tempo"],
             "win_prob": s["win_prob"],
             "ev": s["ev"],
@@ -66,7 +67,8 @@ def top3_db(request):
         s = calc_scores(e, pace, front_ratio, field_agari_avg)
         rows.append({
             "horse_name": e.horse_name,
-            "style": e.get_run_style_display(),
+            "style": display_run_style(s["run_style"]),
+            "corner4_index": s["corner4_index"],
             "tempo": s["tempo"],
             "win_prob": s["win_prob"],  # %
             "ev": s["ev"],
@@ -117,7 +119,10 @@ def get_selected_or_current_race(request):
 
     #Topページ
 def top_page(request):
-    return render(request, "keibaapp_1/top.html")
+    race = get_current_race()
+    return render(request, "keibaapp_1/top.html", {
+        "race": race,
+    })
 
     #Aboutページ
 def about_page(request):
