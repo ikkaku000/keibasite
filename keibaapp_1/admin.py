@@ -60,22 +60,22 @@ def _normalize_run_style(v: str) -> str:
 def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
     """
     returns: (created_count, updated_count)
-    CSVはヘッダー有り推奨。ヘッダー無しでも順番が合っていればOK。
-    想定カラム:
-      number, gate, horse_name, jockey, run_style, expected_odds, last1, last2, last3
+
+    対応カラム:
+      number, gate, horse_name, jockey, run_style, expected_odds,
+      last1, last2, last3,
+      last1_fs, last1_c4, last2_fs, last2_c4, last3_fs, last3_c4
     """
     text = (csv_text or "").strip()
     if not text:
         return (0, 0)
 
-    # 余計な全角スペースなどを軽く吸収
     text = text.replace("\u3000", " ")
 
     f = io.StringIO(text)
     sample = f.read(2048)
     f.seek(0)
 
-    # ヘッダー判定：先頭行に number が含まれてたらヘッダー有り扱い
     first_line = sample.splitlines()[0] if sample.splitlines() else ""
     has_header = "number" in first_line.lower()
 
@@ -95,10 +95,19 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "jockey": (row.get("jockey") or "").strip(),
                 "run_style": _normalize_run_style(row.get("run_style") or ""),
                 "expected_odds": _to_float(row.get("expected_odds")),
+
                 "last1_agari_rank": _to_int(row.get("last1")),
                 "last2_agari_rank": _to_int(row.get("last2")),
                 "last3_agari_rank": _to_int(row.get("last3")),
+
+                "last1_field_size": _to_int(row.get("last1_fs")),
+                "last1_corner4_pos": _to_int(row.get("last1_c4")),
+                "last2_field_size": _to_int(row.get("last2_fs")),
+                "last2_corner4_pos": _to_int(row.get("last2_c4")),
+                "last3_field_size": _to_int(row.get("last3_fs")),
+                "last3_corner4_pos": _to_int(row.get("last3_c4")),
             }
+
             obj, is_created = HorseEntry.objects.update_or_create(
                 race=race,
                 number=number,
@@ -108,13 +117,13 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
             updated += 0 if is_created else 1
 
     else:
-        # ヘッダー無し：順番固定で読む
-        # number, gate, horse_name, jockey, run_style, expected_odds, last1, last2, last3
+        # ヘッダーなし:
+        # number, gate, horse_name, jockey, run_style, expected_odds,
+        # last1, last2, last3, last1_fs, last1_c4, last2_fs, last2_c4, last3_fs, last3_c4
         reader = csv.reader(f)
         for cols in reader:
             if not cols or all((c or "").strip() == "" for c in cols):
                 continue
-            # 列数不足はスキップ
             if len(cols) < 5:
                 continue
 
@@ -128,10 +137,19 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "jockey": (cols[3] or "").strip() if len(cols) > 3 else "",
                 "run_style": _normalize_run_style(cols[4] if len(cols) > 4 else ""),
                 "expected_odds": _to_float(cols[5]) if len(cols) > 5 else None,
+
                 "last1_agari_rank": _to_int(cols[6]) if len(cols) > 6 else None,
                 "last2_agari_rank": _to_int(cols[7]) if len(cols) > 7 else None,
                 "last3_agari_rank": _to_int(cols[8]) if len(cols) > 8 else None,
+
+                "last1_field_size": _to_int(cols[9]) if len(cols) > 9 else None,
+                "last1_corner4_pos": _to_int(cols[10]) if len(cols) > 10 else None,
+                "last2_field_size": _to_int(cols[11]) if len(cols) > 11 else None,
+                "last2_corner4_pos": _to_int(cols[12]) if len(cols) > 12 else None,
+                "last3_field_size": _to_int(cols[13]) if len(cols) > 13 else None,
+                "last3_corner4_pos": _to_int(cols[14]) if len(cols) > 14 else None,
             }
+
             obj, is_created = HorseEntry.objects.update_or_create(
                 race=race,
                 number=number,
