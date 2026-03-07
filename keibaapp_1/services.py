@@ -1,6 +1,7 @@
 from typing import Optional, Iterable
 from math import exp
-from .models import HorseEntry
+from .models import HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot
+
 
 
 # =========================
@@ -399,3 +400,53 @@ def analyze_entries(entries: Iterable[HorseEntry]) -> dict:
         "field_agari_avg": round(field_agari_avg, 2) if field_agari_avg is not None else None,
         "results": results,
     }
+
+#分析結果保存関数
+def save_analysis_snapshot(race, analysis, model_version="v1"):
+    race_snapshot = RaceAnalysisSnapshot.objects.create(
+        race=race,
+        predicted_pace=analysis["pace"],
+        pace_comment=analysis["pace_comment"],
+        front_ratio=analysis["front_ratio"],
+        n_nige=analysis["meta"].get("n_nige", 0),
+        n_front=analysis["meta"].get("n_front", 0),
+        pace_pressure=analysis["meta"].get("pace_pressure", 0.0),
+        field_agari_avg=analysis["field_agari_avg"],
+        model_version=model_version,
+    )
+
+    results = analysis["results"]
+
+    sorted_by_prob = sorted(results, key=lambda x: x["pseudo_win_prob"], reverse=True)
+    prob_rank_map = {id(r): i for i, r in enumerate(sorted_by_prob, start=1)}
+
+    sorted_by_value = sorted(
+        results,
+        key=lambda x: x["value_index"] if x["value_index"] is not None else -999999,
+        reverse=True,
+    )
+    value_rank_map = {id(r): i for i, r in enumerate(sorted_by_value, start=1)}
+
+    for r in results:
+        e = r["entry"]
+
+        EntryAnalysisSnapshot.objects.create(
+            race_snapshot=race_snapshot,
+            horse_entry=e,
+            horse_name=r["horse_name"],
+            horse_number=getattr(e, "number", None),
+            gate=getattr(e, "gate", None),
+            jockey=getattr(e, "jockey", ""),
+            run_style=r["run_style"],
+            corner4_index=r["corner4_index"],
+            agari_avg_rank=r["agari_avg_rank"],
+            tempo_raw=r["tempo_raw"],
+            tempo=r["tempo"],
+            pseudo_win_prob=r["pseudo_win_prob"],
+            value_index=r["value_index"],
+            expected_odds=r["expected_odds"],
+            rank_by_prob=prob_rank_map[id(r)],
+            rank_by_value=value_rank_map[id(r)],
+        )
+
+    return race_snapshot

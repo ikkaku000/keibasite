@@ -2,7 +2,7 @@ import csv
 import io
 from django import forms
 from django.contrib import admin, messages
-from .models import Race, HorseEntry
+from .models import Race, HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot, EntryResultSnapshot
 
 
 # --- CSV貼り付け用のフォーム（DBには保存しない入力欄） ---
@@ -203,3 +203,42 @@ class HorseEntryAdmin(admin.ModelAdmin):
     list_display = ("race", "number", "horse_name", "run_style", "expected_odds")
     list_filter = ("race", "run_style")
     search_fields = ("horse_name", "jockey")
+
+
+@admin.register(RaceAnalysisSnapshot)
+class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "race",
+        "predicted_pace",
+        "front_ratio",
+        "model_version",
+        "calculated_at",
+    )
+    list_filter = ("predicted_pace", "model_version")
+    search_fields = ("race__name",)
+
+
+@admin.register(EntryAnalysisSnapshot)
+class EntryAnalysisSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "race_snapshot",
+        "horse_name",
+        "run_style",
+        "pseudo_win_prob",
+        "value_index",
+        "rank_by_prob",
+        "rank_by_value",
+    )
+    list_filter = ("run_style",)
+    search_fields = ("horse_name",)
+
+
+@admin.register(EntryResultSnapshot)
+class EntryResultSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "entry_snapshot",
+        "finish_position",
+        "win_payoff",
+        "place_payoff",
+        "created_at",
+    )

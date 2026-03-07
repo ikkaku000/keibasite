@@ -1,7 +1,8 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from .models import Race
-from .services import calc_scores, estimate_pace, avg_agari_rank, display_run_style, analyze_entries
+from django.http import HttpResponse
+from .services import calc_scores, estimate_pace, avg_agari_rank, display_run_style, analyze_entries, save_analysis_snapshot
 
 
 def race_db(request):
@@ -109,3 +110,14 @@ def races_page(request):
         "recent": recent,
         "today": today,
     })
+
+def save_race_snapshot(request):
+    race = get_selected_or_current_race(request)
+    if not race:
+        return HttpResponse("race not found")
+
+    entries = list(race.entries.all())
+    analysis = analyze_entries(entries)
+    snapshot = save_analysis_snapshot(race, analysis, model_version="v1")
+
+    return HttpResponse(f"saved snapshot id={snapshot.id}")
