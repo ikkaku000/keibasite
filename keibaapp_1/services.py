@@ -1,5 +1,5 @@
 from typing import Optional, Iterable
-from math import exp
+from math import exp, sqrt
 from .models import HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot
 from typing import Optional
 
@@ -237,7 +237,7 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
     front_ratio は改善版では「前受け圧に近い値」
     """
     base = {
-        "NIGE": 2.20,
+        "NIGE": 2.05,
         "SENKO": 2.00,
         "KOUI": 1.90,
         "SASHI": 1.80,
@@ -247,11 +247,11 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
 
     if pace == "S":
         adj = {
-            "NIGE": 0.90 - 0.35 * front_ratio,
-            "SENKO": 0.55 - 0.25 * front_ratio,
+            "NIGE": 0.72 - 0.28 * front_ratio,
+            "SENKO": 0.52 - 0.22 * front_ratio,
             "KOUI": 0.35 - 0.08 * front_ratio,
-            "SASHI": 0.05 + 0.18 * front_ratio,
-            "OIKOMI": -0.10 + 0.25 * front_ratio,
+            "SASHI": 0.08 + 0.16 * front_ratio,
+            "OIKOMI": -0.05 + 0.20 * front_ratio,
             "UNKNOWN": 0.00,
         }
     elif pace == "H":
@@ -265,7 +265,7 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
         }
     else:  # M
         adj = {
-            "NIGE": 0.28 - 0.18 * front_ratio,
+            "NIGE": 0.22 - 0.15 * front_ratio,
             "SENKO": 0.28 - 0.08 * front_ratio,
             "KOUI": 0.28,
             "SASHI": 0.28 + 0.08 * front_ratio,
@@ -274,7 +274,6 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
         }
 
     return base + adj.get(style, 0.0)
-
 
 def agari_point_relative(avg_rank: Optional[float], field_avg: Optional[float]) -> float:
     """
@@ -346,18 +345,26 @@ def _softmax(values: list[float], temperature: float = 1.0) -> list[float]:
 def attach_win_probs(results: list[dict], temperature: float = 1.15) -> list[dict]:
     """
     calc_scores() の結果群に対して、レース内で疑似勝率を付与する
+    妙味指数はオッズ平方根補正で安定化
     """
     raw_scores = [r["tempo_raw"] for r in results]
     probs = _softmax(raw_scores, temperature=temperature)
 
     for r, p in zip(results, probs):
+        # 疑似勝率（％表示用）
         r["pseudo_win_prob"] = round(p * 100, 1)
 
         odds = r.get("expected_odds") or 0.0
 
-        # 厳密な期待値というより、市場とのズレを見るための妙味指数
+        # 妙味指数（オッズ平方根補正）
         if odds > 0:
-            r["value_index"] = round(p * odds, 2)
+            base_value = p * sqrt(odds)
+
+            # 超低勝率馬の暴れを軽く抑制（任意）
+            if p < 0.04:  # 疑似勝率4%未満
+                base_value *= 0.75
+
+            r["value_index"] = round(base_value, 2)
         else:
             r["value_index"] = None
 
