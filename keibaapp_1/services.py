@@ -1,6 +1,7 @@
 from typing import Optional, Iterable
 from math import exp
 from .models import HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot
+from typing import Optional
 
 
 
@@ -8,12 +9,27 @@ from .models import HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot
 # 基本集計
 # =========================
 
-def avg_agari_rank(e: HorseEntry) -> Optional[float]:
-    ranks = [e.last1_agari_rank, e.last2_agari_rank, e.last3_agari_rank]
+def agari_rank_score(e: HorseEntry) -> Optional[int]:
+    ranks = [
+        e.last1_agari_rank,
+        e.last2_agari_rank,
+        e.last3_agari_rank
+    ]
+
+    # 有効値のみ抽出
     ranks = [r for r in ranks if r is not None and r > 0]
+
     if not ranks:
         return None
-    return sum(ranks) / len(ranks)
+
+    if 1 in ranks:
+        return 3
+    elif 2 in ranks:
+        return 2
+    elif 3 in ranks:
+        return 1
+    else:
+        return 0
 
 
 def calc_corner4_index(field_size: int, corner4_pos: int) -> Optional[float]:
@@ -286,7 +302,7 @@ def calc_scores(
     1頭ごとの生スコアを計算
     ここではまだ勝率にしない
     """
-    a = avg_agari_rank(entry)
+    a = agari_rank_score(entry)
     effective_style = get_effective_run_style(entry)
     avg_idx = avg_corner4_index(entry)
 
@@ -370,7 +386,7 @@ def analyze_entries(entries: Iterable[HorseEntry]) -> dict:
 
     pace, pace_comment, front_ratio, meta = estimate_pace(entries)
 
-    agari_values = [avg_agari_rank(e) for e in entries]
+    agari_values = [agari_rank_score(e) for e in entries]
     agari_values = [x for x in agari_values if x is not None]
     field_agari_avg = sum(agari_values) / len(agari_values) if agari_values else None
 

@@ -1,8 +1,8 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
-from .models import Race
 from django.http import HttpResponse
-from .services import calc_scores, estimate_pace, avg_agari_rank, display_run_style, analyze_entries, save_analysis_snapshot
+from .models import Race
+from .services import display_run_style, analyze_entries, save_analysis_snapshot
 
 
 def race_db(request):
