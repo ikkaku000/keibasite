@@ -94,32 +94,32 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 continue
 
             defaults = {
-                "gate": _to_int(row.get("gate")) or 0,
-                "horse_name": (row.get("horse_name") or "").strip(),
-                "jockey": (row.get("jockey") or "").strip(),
-                "run_style": _normalize_run_style(row.get("run_style") or ""),
-                "expected_odds": _to_float(row.get("expected_odds")),
+                    "gate": _to_int(row.get("gate")) or 0,
+                    "horse_name": (row.get("horse_name") or "").strip(),
+                    "jockey": (row.get("jockey") or "").strip(),
+                    "run_style": _normalize_run_style(row.get("run_style") or ""),
+                    "expected_odds": _to_float(row.get("expected_odds")),
 
-                # 旧: 上がり順位
-                "last1_agari_rank": _to_int(row.get("last1")),
-                "last2_agari_rank": _to_int(row.get("last2")),
-                "last3_agari_rank": _to_int(row.get("last3")),
+                    # 旧: 上がり順位
+                    "last1_agari_rank": _to_int(row.get("last1")),
+                    "last2_agari_rank": _to_int(row.get("last2")),
+                    "last3_agari_rank": _to_int(row.get("last3")),
 
-                # 新: 上がり3F
-                "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
-                "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
-                "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
+                    # 新: 上がり3F
+                    "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
+                    "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
+                    "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
 
-                # 頭数
-                "last1_field_size": _to_int(row.get("last1_fs")),
-                "last2_field_size": _to_int(row.get("last2_fs")),
-                "last3_field_size": _to_int(row.get("last3_fs")),
+                    # 頭数（新旧両対応）
+                    "last1_field_size": _to_int(row.get("last1_field_size") or row.get("last1_fs")),
+                    "last2_field_size": _to_int(row.get("last2_field_size") or row.get("last2_fs")),
+                    "last3_field_size": _to_int(row.get("last3_field_size") or row.get("last3_fs")),
 
-                # 4角位置（新旧両対応）
-                "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
-                "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
-                "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
-            }
+                    # 4角位置（新旧両対応）
+                    "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
+                    "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
+                    "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
+                    }
 
             obj, is_created = HorseEntry.objects.update_or_create(
                 race=race,
