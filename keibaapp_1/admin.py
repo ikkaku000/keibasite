@@ -15,11 +15,9 @@ class RaceAdminForm(forms.ModelForm):
             "style": "font-family: ui-monospace, SFMono-Regular, Menlo, monospace; width: 100%;",
             "placeholder": (
                 "例）\n"
-                "number,gate,horse_name,jockey,run_style,expected_odds,last1,last2,last3\n"
-                "1,1,サンプルA,武豊,SENKO,5.2,3,2,4\n"
-                "2,1,サンプルB,川田,SASHI,8.5,2,6,5\n"
-                "\n"
-                "run_style は NIGE/SENKO/SASHI/OIKOMI/UNKNOWN（逃げ/先行/差し/追込 もOK）"
+                "horse_name,gate,number,jockey,expected_odds,last1_corner4_pos,last2_corner4_pos,last3_corner4_pos,last1_agari_3f,last2_agari_3f,last3_agari_3f\n"
+                "サンプルA,1,1,武豊,5.2,2,3,4,35.1,35.4,35.8\n"
+                "サンプルB,1,2,川田,8.5,6,5,7,34.9,35.6,36.0\n"
             )
         }),
         help_text="貼り付けて保存すると、同じ馬番(number)は更新、なければ新規作成します。空なら何もしません。",
@@ -45,6 +43,7 @@ def _normalize_run_style(v: str) -> str:
     jp_map = {
         "逃げ": "NIGE",
         "先行": "SENKO",
+        "好位": "KOUI",
         "差し": "SASHI",
         "追込": "OIKOMI",
         "追い込み": "OIKOMI",
@@ -52,7 +51,7 @@ def _normalize_run_style(v: str) -> str:
     }
     if v in jp_map:
         return jp_map[v]
-    if v in {"NIGE", "SENKO", "SASHI", "OIKOMI", "UNKNOWN"}:
+    if v in {"NIGE", "SENKO", "KOUI", "SASHI", "OIKOMI", "UNKNOWN"}:
         return v
     return "UNKNOWN"
 
@@ -61,9 +60,13 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
     """
     returns: (created_count, updated_count)
 
-    対応カラム:
-      number, gate, horse_name, jockey, run_style, expected_odds,
-      last1, last2, last3,
+    対応カラム（最新）:
+      horse_name, gate, number, jockey, expected_odds,
+      last1_corner4_pos, last2_corner4_pos, last3_corner4_pos,
+      last1_agari_3f, last2_agari_3f, last3_agari_3f
+
+    旧カラムも一部互換対応:
+      run_style, last1, last2, last3,
       last1_fs, last1_c4, last2_fs, last2_c4, last3_fs, last3_c4
     """
     text = (csv_text or "").strip()
@@ -77,7 +80,8 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
     f.seek(0)
 
     first_line = sample.splitlines()[0] if sample.splitlines() else ""
-    has_header = "number" in first_line.lower()
+    lower_first = first_line.lower()
+    has_header = ("number" in lower_first) or ("horse_name" in lower_first)
 
     created = 0
     updated = 0
@@ -96,16 +100,25 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "run_style": _normalize_run_style(row.get("run_style") or ""),
                 "expected_odds": _to_float(row.get("expected_odds")),
 
+                # 旧: 上がり順位
                 "last1_agari_rank": _to_int(row.get("last1")),
                 "last2_agari_rank": _to_int(row.get("last2")),
                 "last3_agari_rank": _to_int(row.get("last3")),
 
+                # 新: 上がり3F
+                "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
+                "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
+                "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
+
+                # 頭数
                 "last1_field_size": _to_int(row.get("last1_fs")),
-                "last1_corner4_pos": _to_int(row.get("last1_c4")),
                 "last2_field_size": _to_int(row.get("last2_fs")),
-                "last2_corner4_pos": _to_int(row.get("last2_c4")),
                 "last3_field_size": _to_int(row.get("last3_fs")),
-                "last3_corner4_pos": _to_int(row.get("last3_c4")),
+
+                # 4角位置（新旧両対応）
+                "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
+                "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
+                "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
             }
 
             obj, is_created = HorseEntry.objects.update_or_create(
@@ -117,9 +130,7 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
             updated += 0 if is_created else 1
 
     else:
-        # ヘッダーなし:
-        # number, gate, horse_name, jockey, run_style, expected_odds,
-        # last1, last2, last3, last1_fs, last1_c4, last2_fs, last2_c4, last3_fs, last3_c4
+        # ヘッダーなしは旧仕様のまま簡易対応
         reader = csv.reader(f)
         for cols in reader:
             if not cols or all((c or "").strip() == "" for c in cols):
@@ -165,12 +176,13 @@ class HorseEntryInline(admin.TabularInline):
     model = HorseEntry
     extra = 18
     fields = (
-    "number", "gate", "horse_name", "jockey",
-    "run_style", "expected_odds",
-    "last1_agari_rank", "last2_agari_rank", "last3_agari_rank",
-    "last1_field_size", "last1_corner4_pos",
-    "last2_field_size", "last2_corner4_pos",
-    "last3_field_size", "last3_corner4_pos",
+        "number", "gate", "horse_name", "jockey",
+        "run_style", "expected_odds",
+        "last1_agari_rank", "last2_agari_rank", "last3_agari_rank",
+        "last1_agari_3f", "last2_agari_3f", "last3_agari_3f",
+        "last1_field_size", "last1_corner4_pos",
+        "last2_field_size", "last2_corner4_pos",
+        "last3_field_size", "last3_corner4_pos",
     )
     ordering = ("number",)
 

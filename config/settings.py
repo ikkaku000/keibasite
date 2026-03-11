@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'keibaapp_1',
+    "import_export",
 ]
 
 MIDDLEWARE = [

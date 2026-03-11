@@ -42,6 +42,11 @@ class HorseEntry(models.Model):
     last2_agari_rank = models.PositiveIntegerField(null=True, blank=True)
     last3_agari_rank = models.PositiveIntegerField(null=True, blank=True)
 
+    # 追加：過去3走の上がり3F
+    last1_agari_3f = models.FloatField(null=True, blank=True)
+    last2_agari_3f = models.FloatField(null=True, blank=True)
+    last3_agari_3f = models.FloatField(null=True, blank=True)
+
     last1_field_size = models.PositiveIntegerField(null=True, blank=True)
     last2_field_size = models.PositiveIntegerField(null=True, blank=True)
     last3_field_size = models.PositiveIntegerField(null=True, blank=True)
