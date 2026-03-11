@@ -275,6 +275,25 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
 
     return base + adj.get(style, 0.0)
 
+def odds_rank_score(odds: Optional[float]) -> float:
+    """
+    想定オッズから市場信頼度補正を出す
+    強く入れすぎないのがポイント
+    """
+    if odds is None or odds <= 0:
+        return 0.0
+
+    if odds <= 5.0:        # Aランク
+        return 0.20
+    elif odds <= 10.0:     # Bランク
+        return 0.12
+    elif odds <= 20.0:     # Cランク
+        return 0.05
+    elif odds <= 50.0:     # Dランク
+        return 0.00
+    else:                  # Eランク
+        return -0.08
+
 def agari_point_relative(avg_rank: Optional[float], field_avg: Optional[float]) -> float:
     """
     上がり順位を平均との差で評価
@@ -307,7 +326,11 @@ def calc_scores(
 
     style_score = run_style_point(effective_style, pace, front_ratio)
     agari_score = agari_point_relative(a, field_agari_avg)
-    tempo = style_score + agari_score
+
+    # 市場信頼度補正（オッズ軽補正）
+    odds_score = odds_rank_score(entry.expected_odds)
+
+    tempo = style_score + agari_score + odds_score
 
     return {
         "tempo_raw": tempo,
@@ -316,7 +339,6 @@ def calc_scores(
         "corner4_index": round(avg_idx, 1) if avg_idx is not None else None,
         "agari_avg_rank": round(a, 2) if a is not None else None,
     }
-
 
 # =========================
 # レース内正規化
