@@ -29,8 +29,19 @@ class RaceAdminForm(forms.ModelForm):
 
 
 def _to_int(v):
+    """
+    CSVから来る値を安全にintへ変換する。
+    '15' も '15.0' も両方OK。
+    空文字や不正値は None を返す。
+    """
     v = (v or "").strip()
-    return int(v) if v else None
+    if not v:
+        return None
+
+    try:
+        return int(float(v))
+    except (ValueError, TypeError):
+        return None
 
 
 def _to_float(v):
