@@ -22,6 +22,7 @@
     }
 
     *{box-sizing:border-box}
+
     body{
       margin:0;
       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
@@ -58,12 +59,14 @@
       justify-content:space-between;
       align-items:center;
       padding:14px 0;
+      gap:16px;
     }
 
     .brand{
       font-weight:800;
       letter-spacing:.02em;
       font-size:1.05rem;
+      white-space:nowrap;
     }
 
     .navLinks{
@@ -72,6 +75,7 @@
       flex-wrap:wrap;
       color:var(--muted);
       font-size:.95rem;
+      justify-content:flex-end;
     }
 
     .navLinks a:hover{
@@ -79,7 +83,32 @@
     }
 
     .hero{
-      padding:68px 0 34px;
+      position:relative;
+      padding:90px 0 60px;
+      background-image:url("{% static 'keibaapp_1/img/top_back.png' %}");
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      overflow:hidden;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(5,10,20,0.72) 0%,
+          rgba(5,10,20,0.84) 60%,
+          rgba(5,10,20,0.92) 100%
+        );
+      z-index:0;
+    }
+
+    .hero > *{
+      position:relative;
+      z-index:1;
     }
 
     .heroGrid{
@@ -275,6 +304,16 @@
       color:var(--muted);
     }
 
+    .notice{
+      margin-top:18px;
+      padding:14px 16px;
+      border-radius:14px;
+      background:rgba(138,215,255,.08);
+      border:1px solid rgba(138,215,255,.16);
+      color:#d9efff;
+      font-size:.95rem;
+    }
+
     .footer{
       padding:40px 0 56px;
       color:var(--muted);
@@ -286,41 +325,20 @@
       .grid3{
         grid-template-columns:1fr;
       }
+
       .hero{
         padding-top:44px;
       }
+
+      .navInner{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .brand{
+        white-space:normal;
+      }
     }
-
-    .hero {
-  position: relative;
-  padding: 90px 0 60px;
-  background-image: url("{% static 'keibaapp_1/img/top_back.png' %}");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-  }
-
-/* 暗くするオーバーレイ */
-  .hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: 
-    linear-gradient(
-      180deg,
-      rgba(5,10,20,0.75) 0%,
-      rgba(5,10,20,0.85) 60%,
-      rgba(5,10,20,0.92) 100%
-    );
-  z-index: 0;
-  }
-
-/* 中身を前面に */
-  .hero > * {
-  position: relative;
-  z-index: 1;
-  }
   </style>
 </head>
 <body>
@@ -343,19 +361,23 @@
           <div class="tagRow">
             <span class="tag">中央競馬</span>
             <span class="tag">重賞限定</span>
-            <span class="tag">展開 × 妙味</span>
+            <span class="tag">先行ロジック × 競馬</span>
           </div>
 
           <h1>重賞は、展開でズレる。<br>4角位置指数から読むAI分析。</h1>
 
           <p class="lead">
-            脚質・ペース・上がり傾向から、展開で浮上する馬をランキング化。
-            的中を煽らず、<b>疑似勝率</b>と<b>妙味指数</b>で判断材料を提供します。
+            4角位置指数から脚質を自動判定し、ペース推定・上がり相対評価・疑似勝率・妙味指数まで一気通貫で可視化。
+            ただ当てるだけではなく、<b>市場人気とのズレ</b>を見つけるための判断材料を整理します。
           </p>
 
           <div class="ctaRow">
             <a class="btn btnPrimary" href="/race/">▶ 今週の無料分析を見る</a>
             <a class="btn btnGhost" href="/about/">▶ ロジックを見る</a>
+          </div>
+
+          <div class="notice">
+            現在は <b>今週の重賞1レースのみ無料公開</b>。まずは実際の分析画面で、ロジックと見やすさを確認できます。
           </div>
         </div>
 
@@ -388,7 +410,7 @@
             <div>
               <div class="sectionTitle" style="margin:0;">今週の無料公開レース</div>
               <p class="sectionLead" style="margin:6px 0 0;">
-                まずは1レース分の無料分析で、ロジックと見やすさを確認できます。
+                まずは1レース分の無料分析で、ロジックとUIを確認できます。
               </p>
             </div>
           </div>
@@ -423,7 +445,7 @@
             <h3>① ペース自動推定</h3>
             <p>
               4角位置データから脚質を自動判定し、逃げ・先行勢の構成から
-              レース全体のペースを自動で推定します。
+              レース全体の想定ペースを自動で推定します。
             </p>
           </div>
 
@@ -460,15 +482,15 @@
             <div class="listItem">
               <b>ブラックボックス化しすぎない</b>
               <div class="muted">
-                4角位置指数 → 脚質 → ペース → 上がり → 疑似勝率 → 妙味指数
+                4角位置指数 → 脚質 → ペース → 上がり相対評価 → 疑似勝率 → 妙味指数
                 という流れで、予想の根拠を追いやすくしています。
               </div>
             </div>
             <div class="listItem">
               <b>当たるかだけでなく、ズレを拾う</b>
               <div class="muted">
-                競馬は「当たる / 外れる」だけでなく、市場人気とのズレをどう拾うかが重要です。
-                無料の1レースで内容を確認し、納得した人だけが次へ進める設計にしています。
+                競馬は「当たる / 外れる」だけでなく、市場人気とのズレをどう拾うかも重要です。
+                無料の1レースで中身を確認し、納得した人だけが次へ進める設計にしています。
               </div>
             </div>
           </div>
@@ -479,7 +501,7 @@
     <section class="section">
       <div class="container">
         <div class="card2">
-          <h2 class="sectionTitle">公開中のページ</h2>
+          <h2 class="sectionTitle">まず見るべきページ</h2>
           <div class="ctaRow" style="margin-top:0;">
             <a class="btn btnPrimary" href="/race/">▶ 無料分析ページ</a>
             <a class="btn btnGhost" href="/races/">▶ 重賞一覧ページ</a>
@@ -496,9 +518,9 @@
       4角位置指数・脚質・ペース推定・上がり相対評価をもとに、疑似勝率と妙味指数を表示します。
 
       <p style="margin-top:14px; font-size:0.85rem; opacity:0.7; line-height:1.6;">
-      本サイトは情報提供を目的としたものであり、特定の馬券購入を推奨するものではありません。<br>
-      最終判断はご自身の責任でお願いいたします。
-    </p>
+        本サイトは情報提供を目的としたものであり、特定の馬券購入を推奨するものではありません。<br>
+        最終判断はご自身の責任でお願いいたします。
+      </p>
     </div>
   </footer>
 </body>

@@ -368,6 +368,7 @@ def attach_win_probs(results: list[dict], temperature: float = 1.15) -> list[dic
     """
     calc_scores() の結果群に対して、レース内で疑似勝率を付与する
     妙味指数はオッズ平方根補正で安定化
+    さらに50倍以上の超人気薄は減衰させる
     """
     raw_scores = [r["tempo_raw"] for r in results]
     probs = _softmax(raw_scores, temperature=temperature)
@@ -382,9 +383,13 @@ def attach_win_probs(results: list[dict], temperature: float = 1.15) -> list[dic
         if odds > 0:
             base_value = p * sqrt(odds)
 
-            # 超低勝率馬の暴れを軽く抑制（任意）
+            # 超低勝率馬の暴れを軽く抑制
             if p < 0.04:  # 疑似勝率4%未満
                 base_value *= 0.75
+
+            # 50倍以上の超人気薄を減衰
+            decay = get_longshot_decay(odds)
+            base_value *= decay
 
             r["value_index"] = round(base_value, 2)
         else:
@@ -495,3 +500,18 @@ def save_analysis_snapshot(race, analysis, model_version="v1"):
         )
 
     return race_snapshot
+
+def get_longshot_decay(odds: float | None) -> float:
+    """
+    超人気薄の期待値を減衰させる係数
+    50倍以上から減衰開始
+    """
+    if odds is None:
+        return 1.0
+
+    if odds >= 100.0:
+        return 0.40
+    elif odds >= 50.0:
+        return 0.70
+    else:
+        return 1.00

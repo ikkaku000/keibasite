@@ -3,39 +3,103 @@
 {% block title %}ランキング - {{ race.name }}{% endblock %}
 
 {% block content %}
-  <h1>{{ race.name }}（ダミー表示）</h1>
 
-  <div class="meta">
-    <span class="badge">中央競馬</span>
-    <span class="badge">重賞 {{ race.grade }}</span>
-    <span class="badge">{{ race.course }}</span>
-    <span class="badge">想定ペース：{{ race.pace }}（{{ race.pace_comment }}）</span>
-  </div>
+<h1 style="margin-bottom:10px;">
+{{ race.name }}
+</h1>
 
-  <table>
-    <thead>
-      <tr>
-        <th>順位</th><th>馬名</th><th>脚質</th><th>4角位置指数</th><th>展開指数</th><th>期待値</th><th>展開シナリオ勝率(%)</th><th>想定オッズ</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-      <tr class="{% if forloop.first %}top{% endif %}">
-        <td>{{ r.rank }}</td>
-        <td>{{ r.horse_name }}</td>
-        <td>{{ r.style }}</td>
-        <td>{{ r.corner4_index|default:"-" }}</td>
-        <td>{{ r.tempo|floatformat:2 }}</td>
-        <td><b>{{ r.ev|floatformat:2 }}</b></td>
-        <td>{{ r.win_prob }}</td>
-        <td>{{ r.odds }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="meta" style="margin-bottom:20px;">
+  <span class="badge">中央競馬</span>
+  <span class="badge">重賞 {{ race.grade }}</span>
+  <span class="badge">{{ race.course }}</span>
+  <span class="badge">想定ペース：{{ race.pace }}（{{ race.pace_comment }}）</span>
+</div>
 
-  <hr style="margin:40px 0;">
 
+<!-- =========================
+ランキングテーブル
+========================= -->
+<table style="width:100%;border-collapse:collapse;">
+  <thead>
+    <tr style="background:#f0f0f0;">
+      <th>順位</th>
+      <th>馬名</th>
+      <th>脚質</th>
+      <th>4角指数</th>
+      <th>展開指数</th>
+      <th>勝率(%)</th>
+      <th>期待値</th>
+      <th>オッズ</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for r in rows %}
+    <tr
+      style="
+      border-bottom:1px solid #eee;
+      {% if forloop.first %}
+        background:#fff7e6;
+        font-weight:bold;
+      {% endif %}
+      "
+    >
+      <td>{{ r.rank }}</td>
+
+      <td>
+        {{ r.horse_name }}
+        {% if r.ev and r.ev > 1.5 %}
+          <span style="color:#e53935;font-size:12px;">★</span>
+        {% endif %}
+      </td>
+
+      <td>{{ r.style }}</td>
+
+      <td>{{ r.corner4_index|default:"-" }}</td>
+
+      <td>{{ r.tempo|floatformat:2 }}</td>
+
+      <td>
+        <b>{{ r.win_prob }}</b>
+      </td>
+
+      <td>
+        <b style="
+          {% if r.ev and r.ev > 1.5 %}
+            color:#e53935;
+          {% elif r.ev and r.ev > 1.0 %}
+            color:#ff9800;
+          {% endif %}
+        ">
+          {{ r.ev|floatformat:2 }}
+        </b>
+      </td>
+
+      <td>{{ r.odds }}</td>
+    </tr>
+
+    <!-- ▼ 詳細（開発用：後で消してOK） -->
+    <tr>
+      <td colspan="8" style="font-size:12px;color:#888;padding:4px 0 10px 0;">
+        上がり順位: {{ r.agari_avg_rank|default:"-" }} /
+        上がり3F: {{ r.agari_avg_3f|default:"-" }} /
+        能力補正: {{ r.ability_score|default:"-" }} /
+        騎手補正: {{ r.jockey_score|default:"-" }} /
+        枠補正: {{ r.gate_score|default:"-" }}
+      </td>
+    </tr>
+
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<hr style="margin:40px 0;">
+
+
+<!-- =========================
+CTAエリア（収益導線）
+========================= -->
 <section style="
 max-width:900px;
 margin:auto;
@@ -88,7 +152,9 @@ background:#fff;
 
 </section>
 
-  <p style="margin-top:16px;">
-    <a href="/top/">上位3頭の理由を見る →</a>
-  </p>
+
+<p style="margin-top:16px;">
+  <a href="/top/">上位3頭の理由を見る →</a>
+</p>
+
 {% endblock %}
