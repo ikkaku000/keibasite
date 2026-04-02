@@ -2,10 +2,20 @@ import csv
 import io
 from django import forms
 from django.contrib import admin, messages
-from .models import Race, HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot, EntryResultSnapshot
+
+from .models import (
+    Race,
+    HorseEntry,
+    RaceAnalysisSnapshot,
+    EntryAnalysisSnapshot,
+    EntryResultSnapshot,
+)
 
 
-# --- CSV貼り付け用のフォーム（DBには保存しない入力欄） ---
+# =========================
+# CSV貼り付け用フォーム
+# =========================
+
 class RaceAdminForm(forms.ModelForm):
     csv_input = forms.CharField(
         required=False,
@@ -46,7 +56,12 @@ def _to_int(v):
 
 def _to_float(v):
     v = (v or "").strip()
-    return float(v) if v else None
+    if not v:
+        return None
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return None
 
 
 def _normalize_run_style(v: str) -> str:
@@ -105,34 +120,34 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 continue
 
             defaults = {
-                    "gate": _to_int(row.get("gate")) or 0,
-                    "horse_name": (row.get("horse_name") or "").strip(),
-                    "jockey": (row.get("jockey") or "").strip(),
-                    "run_style": _normalize_run_style(row.get("run_style") or ""),
-                    "expected_odds": _to_float(row.get("expected_odds")),
+                "gate": _to_int(row.get("gate")) or 0,
+                "horse_name": (row.get("horse_name") or "").strip(),
+                "jockey": (row.get("jockey") or "").strip(),
+                "run_style": _normalize_run_style(row.get("run_style") or ""),
+                "expected_odds": _to_float(row.get("expected_odds")),
 
-                    # 旧: 上がり順位
-                    "last1_agari_rank": _to_int(row.get("last1")),
-                    "last2_agari_rank": _to_int(row.get("last2")),
-                    "last3_agari_rank": _to_int(row.get("last3")),
+                # 旧: 上がり順位
+                "last1_agari_rank": _to_int(row.get("last1")),
+                "last2_agari_rank": _to_int(row.get("last2")),
+                "last3_agari_rank": _to_int(row.get("last3")),
 
-                    # 新: 上がり3F
-                    "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
-                    "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
-                    "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
+                # 新: 上がり3F
+                "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
+                "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
+                "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
 
-                    # 頭数（新旧両対応）
-                    "last1_field_size": _to_int(row.get("last1_field_size") or row.get("last1_fs")),
-                    "last2_field_size": _to_int(row.get("last2_field_size") or row.get("last2_fs")),
-                    "last3_field_size": _to_int(row.get("last3_field_size") or row.get("last3_fs")),
+                # 頭数（新旧両対応）
+                "last1_field_size": _to_int(row.get("last1_field_size") or row.get("last1_fs")),
+                "last2_field_size": _to_int(row.get("last2_field_size") or row.get("last2_fs")),
+                "last3_field_size": _to_int(row.get("last3_field_size") or row.get("last3_fs")),
 
-                    # 4角位置（新旧両対応）
-                    "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
-                    "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
-                    "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
-                    }
+                # 4角位置（新旧両対応）
+                "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
+                "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
+                "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
+            }
 
-            obj, is_created = HorseEntry.objects.update_or_create(
+            _, is_created = HorseEntry.objects.update_or_create(
                 race=race,
                 number=number,
                 defaults=defaults
@@ -141,7 +156,7 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
             updated += 0 if is_created else 1
 
     else:
-        # ヘッダーなしは旧仕様のまま簡易対応
+        # ヘッダーなし旧仕様
         reader = csv.reader(f)
         for cols in reader:
             if not cols or all((c or "").strip() == "" for c in cols):
@@ -172,7 +187,7 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "last3_corner4_pos": _to_int(cols[14]) if len(cols) > 14 else None,
             }
 
-            obj, is_created = HorseEntry.objects.update_or_create(
+            _, is_created = HorseEntry.objects.update_or_create(
                 race=race,
                 number=number,
                 defaults=defaults
@@ -183,28 +198,99 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
     return (created, updated)
 
 
+# =========================
+# Inlines
+# =========================
+
 class HorseEntryInline(admin.TabularInline):
     model = HorseEntry
     extra = 18
     fields = (
-        "number", "gate", "horse_name", "jockey",
-        "run_style", "expected_odds",
-        "last1_agari_rank", "last2_agari_rank", "last3_agari_rank",
-        "last1_agari_3f", "last2_agari_3f", "last3_agari_3f",
-        "last1_field_size", "last1_corner4_pos",
-        "last2_field_size", "last2_corner4_pos",
-        "last3_field_size", "last3_corner4_pos",
+        "number",
+        "gate",
+        "horse_name",
+        "jockey",
+        "run_style",
+        "expected_odds",
+        "last1_agari_rank",
+        "last2_agari_rank",
+        "last3_agari_rank",
+        "last1_agari_3f",
+        "last2_agari_3f",
+        "last3_agari_3f",
+        "last1_field_size",
+        "last1_corner4_pos",
+        "last2_field_size",
+        "last2_corner4_pos",
+        "last3_field_size",
+        "last3_corner4_pos",
     )
     ordering = ("number",)
 
 
+class EntryAnalysisSnapshotInline(admin.TabularInline):
+    model = EntryAnalysisSnapshot
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    fields = (
+        "rank_by_prob",
+        "rank_by_value",
+        "horse_number",
+        "gate",
+        "horse_name",
+        "jockey",
+        "run_style",
+        "corner4_index",
+        "agari_avg_rank",
+        "tempo",
+        "pseudo_win_prob",
+        "value_index",
+        "expected_odds",
+    )
+    readonly_fields = fields
+    ordering = ("rank_by_prob",)
+
+
+class EntryResultSnapshotInline(admin.StackedInline):
+    model = EntryResultSnapshot
+    extra = 0
+    max_num = 1
+    fields = (
+        "finish_position",
+        "corner4_actual",
+        "agari_actual_rank",
+        "win_payoff",
+        "place_payoff",
+        "created_at",
+    )
+    readonly_fields = ("created_at",)
+
+
+# =========================
+# Race
+# =========================
+
 @admin.register(Race)
 class RaceAdmin(admin.ModelAdmin):
     form = RaceAdminForm
-    list_display = ("race_date", "name", "grade", "course", "track_condition", "pace")
-    list_filter = ("grade", "race_date")
+    list_display = (
+        "race_date",
+        "name",
+        "grade",
+        "course",
+        "track_condition",
+        "pace",
+        "entry_count",
+    )
+    list_filter = ("grade", "track_condition", "race_date")
     search_fields = ("name", "course")
+    date_hierarchy = "race_date"
     inlines = [HorseEntryInline]
+
+    def entry_count(self, obj):
+        return obj.entries.count()
+    entry_count.short_description = "出走頭数"
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -221,47 +307,254 @@ class RaceAdmin(admin.ModelAdmin):
                 messages.error(request, f"CSV取込に失敗しました：{e}")
 
 
+# =========================
+# HorseEntry
+# =========================
+
 @admin.register(HorseEntry)
 class HorseEntryAdmin(admin.ModelAdmin):
-    list_display = ("race", "number", "horse_name", "run_style", "expected_odds")
-    list_filter = ("race", "run_style")
-    search_fields = ("horse_name", "jockey")
+    list_display = (
+        "race",
+        "number",
+        "gate",
+        "horse_name",
+        "jockey",
+        "run_style",
+        "expected_odds",
+    )
+    list_filter = (
+        "run_style",
+        "race__grade",
+        "race__race_date",
+    )
+    search_fields = ("horse_name", "jockey", "race__name")
+    list_select_related = ("race",)
+    ordering = ("race__race_date", "race", "number")
 
+
+# =========================
+# RaceAnalysisSnapshot
+# =========================
 
 @admin.register(RaceAnalysisSnapshot)
 class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "race",
         "predicted_pace",
         "front_ratio",
+        "n_nige",
+        "n_front",
+        "pace_pressure",
+        "field_agari_avg",
+        "model_version",
+        "calculated_at",
+        "entry_snapshot_count",
+    )
+    list_filter = (
+        "predicted_pace",
+        "model_version",
+        "race__grade",
+        "race__race_date",
+    )
+    search_fields = ("race__name", "race__course")
+    date_hierarchy = "calculated_at"
+    readonly_fields = (
+        "race",
+        "predicted_pace",
+        "pace_comment",
+        "front_ratio",
+        "n_nige",
+        "n_front",
+        "pace_pressure",
+        "field_agari_avg",
         "model_version",
         "calculated_at",
     )
-    list_filter = ("predicted_pace", "model_version")
-    search_fields = ("race__name",)
+    inlines = [EntryAnalysisSnapshotInline]
 
+    fieldsets = (
+        ("基本情報", {
+            "fields": ("race", "model_version", "calculated_at")
+        }),
+        ("ペース分析", {
+            "fields": (
+                "predicted_pace",
+                "pace_comment",
+                "front_ratio",
+                "n_nige",
+                "n_front",
+                "pace_pressure",
+            )
+        }),
+        ("レース全体指標", {
+            "fields": ("field_agari_avg",)
+        }),
+    )
+
+    def entry_snapshot_count(self, obj):
+        return obj.entry_snapshots.count()
+    entry_snapshot_count.short_description = "保存頭数"
+
+
+# =========================
+# EntryAnalysisSnapshot
+# =========================
 
 @admin.register(EntryAnalysisSnapshot)
 class EntryAnalysisSnapshotAdmin(admin.ModelAdmin):
     list_display = (
-        "race_snapshot",
+        "id",
+        "race_name",
+        "model_version",
+        "rank_by_prob",
+        "rank_by_value",
+        "horse_number",
         "horse_name",
         "run_style",
         "pseudo_win_prob",
         "value_index",
+        "expected_odds",
+        "has_result",
+        "created_at",
+    )
+    list_filter = (
+        "run_style",
+        "race_snapshot__predicted_pace",
+        "race_snapshot__model_version",
+        "race_snapshot__race__grade",
+        "created_at",
+    )
+    search_fields = (
+        "horse_name",
+        "jockey",
+        "race_snapshot__race__name",
+    )
+    list_select_related = (
+        "race_snapshot",
+        "race_snapshot__race",
+        "horse_entry",
+    )
+    readonly_fields = (
+        "race_snapshot",
+        "horse_entry",
+        "horse_name",
+        "horse_number",
+        "gate",
+        "jockey",
+        "run_style",
+        "corner4_index",
+        "agari_avg_rank",
+        "tempo_raw",
+        "tempo",
+        "pseudo_win_prob",
+        "value_index",
+        "expected_odds",
         "rank_by_prob",
         "rank_by_value",
+        "created_at",
     )
-    list_filter = ("run_style",)
-    search_fields = ("horse_name",)
+    inlines = [EntryResultSnapshotInline]
 
+    fieldsets = (
+        ("基本情報", {
+            "fields": (
+                "race_snapshot",
+                "horse_entry",
+                "horse_name",
+                "horse_number",
+                "gate",
+                "jockey",
+                "created_at",
+            )
+        }),
+        ("予想指標", {
+            "fields": (
+                "run_style",
+                "corner4_index",
+                "agari_avg_rank",
+                "tempo_raw",
+                "tempo",
+                "pseudo_win_prob",
+                "value_index",
+                "expected_odds",
+            )
+        }),
+        ("順位", {
+            "fields": (
+                "rank_by_prob",
+                "rank_by_value",
+            )
+        }),
+    )
+
+    def race_name(self, obj):
+        return obj.race_snapshot.race.name
+    race_name.short_description = "レース名"
+
+    def model_version(self, obj):
+        return obj.race_snapshot.model_version
+    model_version.short_description = "モデル"
+
+    def has_result(self, obj):
+        return hasattr(obj, "result_snapshot")
+    has_result.boolean = True
+    has_result.short_description = "結果入力"
+
+
+# =========================
+# EntryResultSnapshot
+# =========================
 
 @admin.register(EntryResultSnapshot)
 class EntryResultSnapshotAdmin(admin.ModelAdmin):
     list_display = (
-        "entry_snapshot",
+        "id",
+        "race_name",
+        "horse_name",
         "finish_position",
+        "corner4_actual",
+        "agari_actual_rank",
         "win_payoff",
         "place_payoff",
         "created_at",
     )
+    list_filter = (
+        "entry_snapshot__race_snapshot__race__grade",
+        "entry_snapshot__race_snapshot__predicted_pace",
+        "created_at",
+    )
+    search_fields = (
+        "entry_snapshot__horse_name",
+        "entry_snapshot__race_snapshot__race__name",
+    )
+    list_select_related = (
+        "entry_snapshot",
+        "entry_snapshot__race_snapshot",
+        "entry_snapshot__race_snapshot__race",
+    )
+    readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("ひも付け先", {
+            "fields": ("entry_snapshot",)
+        }),
+        ("実結果", {
+            "fields": (
+                "finish_position",
+                "corner4_actual",
+                "agari_actual_rank",
+                "win_payoff",
+                "place_payoff",
+                "created_at",
+            )
+        }),
+    )
+
+    def race_name(self, obj):
+        return obj.entry_snapshot.race_snapshot.race.name
+    race_name.short_description = "レース名"
+
+    def horse_name(self, obj):
+        return obj.entry_snapshot.horse_name
+    horse_name.short_description = "馬名"
