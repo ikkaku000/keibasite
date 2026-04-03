@@ -1,13 +1,20 @@
 from django.utils.timezone import now
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
+from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Prefetch
+from .models import EntryAnalysisSnapshot, EntryResultSnapshot
 
-from .models import Race
+from .models import Race, RaceAnalysisSnapshot
 from .services import (
     display_run_style,
     analyze_entries,
     save_analysis_snapshot,
 )
+
+
+MODEL_VERSION = "v2"
 
 
 def get_current_race():
@@ -68,7 +75,6 @@ def build_row_data(results, limit=None):
             "win_prob": r["pseudo_win_prob"],
             "ev": r["value_index"],
             "odds": r["expected_odds"],
-            # 必要に応じてテンプレートで使えるよう残しておく
             "style_score": r.get("style_score"),
             "agari_rank_rel": r.get("agari_rank_rel"),
             "agari_3f_rel": r.get("agari_3f_rel"),
@@ -77,6 +83,36 @@ def build_row_data(results, limit=None):
             "gate_score": r.get("gate_score"),
         })
     return rows
+
+
+def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSION):
+    """
+    Snapshot自動保存
+    - DEBUG=True の開発環境、または staff ユーザーのみ有効
+    - 同じ race × model_version が既にあれば新規保存しない
+    - ?force_snapshot=1 を付けると強制保存
+    """
+    is_operator = settings.DEBUG or (
+        request.user.is_authenticated and request.user.is_staff
+    )
+
+    if not is_operator:
+        return None, False, "not_allowed"
+
+    force_save = request.GET.get("force_snapshot") == "1"
+
+    latest = (
+        RaceAnalysisSnapshot.objects
+        .filter(race=race, model_version=model_version)
+        .order_by("-calculated_at")
+        .first()
+    )
+
+    if latest and not force_save:
+        return latest, False, "already_exists"
+
+    snapshot = save_analysis_snapshot(race, analysis, model_version=model_version)
+    return snapshot, True, "created"
 
 
 def top_page(request):
@@ -106,6 +142,7 @@ def races_page(request):
 def race_db(request):
     """
     全頭ランキング表示ページ
+    運営側が開いたときのみSnapshotを自動保存
     """
     race = get_selected_or_current_race(request)
     if not race:
@@ -114,10 +151,21 @@ def race_db(request):
     entries = list(race.entries.all())
     analysis = analyze_entries(entries)
 
+    snapshot, snapshot_created, snapshot_status = maybe_auto_save_snapshot(
+        request=request,
+        race=race,
+        analysis=analysis,
+        model_version=MODEL_VERSION,
+    )
+
     context = {
         "race": build_race_context(race, analysis),
         "rows": build_row_data(analysis["results"]),
         "analysis": analysis,
+        "debug": settings.DEBUG,
+        "snapshot_id": snapshot.id if snapshot else None,
+        "snapshot_created": snapshot_created,
+        "snapshot_status": snapshot_status,
     }
     return render(request, "keibaapp_1/race_mock.html", context)
 
@@ -125,6 +173,7 @@ def race_db(request):
 def top3_db(request):
     """
     上位3頭表示ページ
+    こちらでは自動保存しない
     """
     race = get_selected_or_current_race(request)
     if not race:
@@ -137,13 +186,16 @@ def top3_db(request):
         "race": build_race_context(race, analysis),
         "rows": build_row_data(analysis["results"], limit=3),
         "analysis": analysis,
+        "debug": settings.DEBUG,
     }
     return render(request, "keibaapp_1/top3_mock.html", context)
 
 
+@staff_member_required
 def save_race_snapshot(request):
     """
-    現在の分析結果を保存
+    手動保存用
+    /save_snapshot/?race_id=1
     """
     race = get_selected_or_current_race(request)
     if not race:
@@ -151,6 +203,180 @@ def save_race_snapshot(request):
 
     entries = list(race.entries.all())
     analysis = analyze_entries(entries)
-    snapshot = save_analysis_snapshot(race, analysis, model_version="v2")
+    snapshot = save_analysis_snapshot(race, analysis, model_version=MODEL_VERSION)
 
     return HttpResponse(f"saved snapshot id={snapshot.id}")
+
+def roi_page(request):
+    """
+    Snapshotベースの簡易回収率ページ
+    - 集計対象: EntryResultSnapshot が入っているもの
+    - strategy:
+        prob1  = 疑似勝率1位を単勝100円で買った想定
+        value1 = 妙味順位1位を単勝100円で買った想定
+        top3_place = 疑似勝率上位3頭を複勝100円ずつ買った想定
+    """
+    model_version = request.GET.get("model_version", "v2")
+
+    snapshots = (
+        EntryAnalysisSnapshot.objects
+        .filter(race_snapshot__model_version=model_version)
+        .select_related("race_snapshot", "race_snapshot__race")
+        .prefetch_related(
+            Prefetch(
+                "result_snapshot",
+                queryset=EntryResultSnapshot.objects.all()
+            )
+        )
+        .order_by("race_snapshot__race__race_date", "race_snapshot__id", "rank_by_prob")
+    )
+
+    # レース単位にまとめる
+    race_map = {}
+    for row in snapshots:
+        race_snapshot = row.race_snapshot
+        rs_id = race_snapshot.id
+
+        if rs_id not in race_map:
+            race_map[rs_id] = {
+                "snapshot": race_snapshot,
+                "rows": [],
+            }
+        race_map[rs_id]["rows"].append(row)
+
+    race_blocks = list(race_map.values())
+
+    # 集計用
+    prob1_bet = 0
+    prob1_return = 0
+
+    value1_bet = 0
+    value1_return = 0
+
+    top3_place_bet = 0
+    top3_place_return = 0
+
+    detail_rows = []
+    chart_labels = []
+    chart_prob1_roi = []
+    chart_value1_roi = []
+    chart_top3_place_roi = []
+
+    cum_prob1_bet = 0
+    cum_prob1_return = 0
+    cum_value1_bet = 0
+    cum_value1_return = 0
+    cum_top3_place_bet = 0
+    cum_top3_place_return = 0
+
+    for block in race_blocks:
+        snapshot = block["snapshot"]
+        rows = block["rows"]
+
+        rows_by_prob = sorted(
+            rows,
+            key=lambda x: (x.rank_by_prob if x.rank_by_prob is not None else 9999)
+        )
+        rows_by_value = sorted(
+            rows,
+            key=lambda x: (x.rank_by_value if x.rank_by_value is not None else 9999)
+        )
+
+        prob1 = rows_by_prob[0] if rows_by_prob else None
+        value1 = rows_by_value[0] if rows_by_value else None
+        top3 = rows_by_prob[:3]
+
+        race_prob1_bet = 0
+        race_prob1_return = 0
+
+        race_value1_bet = 0
+        race_value1_return = 0
+
+        race_top3_place_bet = 0
+        race_top3_place_return = 0
+
+        # 疑似勝率1位 単勝100円
+        if prob1 and hasattr(prob1, "result_snapshot"):
+            race_prob1_bet += 100
+            if prob1.result_snapshot.win_payoff:
+                race_prob1_return += prob1.result_snapshot.win_payoff
+
+        # 妙味1位 単勝100円
+        if value1 and hasattr(value1, "result_snapshot"):
+            race_value1_bet += 100
+            if value1.result_snapshot.win_payoff:
+                race_value1_return += value1.result_snapshot.win_payoff
+
+        # 疑似勝率上位3頭 複勝100円ずつ
+        valid_top3_count = 0
+        for r in top3:
+            if hasattr(r, "result_snapshot"):
+                valid_top3_count += 1
+                if r.result_snapshot.place_payoff:
+                    race_top3_place_return += r.result_snapshot.place_payoff
+
+        if valid_top3_count > 0:
+            race_top3_place_bet += valid_top3_count * 100
+
+        prob1_bet += race_prob1_bet
+        prob1_return += race_prob1_return
+
+        value1_bet += race_value1_bet
+        value1_return += race_value1_return
+
+        top3_place_bet += race_top3_place_bet
+        top3_place_return += race_top3_place_return
+
+        cum_prob1_bet += race_prob1_bet
+        cum_prob1_return += race_prob1_return
+        cum_value1_bet += race_value1_bet
+        cum_value1_return += race_value1_return
+        cum_top3_place_bet += race_top3_place_bet
+        cum_top3_place_return += race_top3_place_return
+
+        prob1_roi = round((cum_prob1_return / cum_prob1_bet) * 100, 1) if cum_prob1_bet else 0
+        value1_roi = round((cum_value1_return / cum_value1_bet) * 100, 1) if cum_value1_bet else 0
+        top3_place_roi = round((cum_top3_place_return / cum_top3_place_bet) * 100, 1) if cum_top3_place_bet else 0
+
+        chart_labels.append(f"{snapshot.race.race_date:%m/%d} {snapshot.race.name}")
+        chart_prob1_roi.append(prob1_roi)
+        chart_value1_roi.append(value1_roi)
+        chart_top3_place_roi.append(top3_place_roi)
+
+        detail_rows.append({
+            "race_date": snapshot.race.race_date,
+            "race_name": snapshot.race.name,
+            "grade": snapshot.race.grade,
+            "pace": snapshot.predicted_pace,
+            "prob1_name": prob1.horse_name if prob1 else "-",
+            "prob1_return": race_prob1_return,
+            "value1_name": value1.horse_name if value1 else "-",
+            "value1_return": race_value1_return,
+            "top3_place_return": race_top3_place_return,
+        })
+
+    summary = {
+        "model_version": model_version,
+        "race_count": len(race_blocks),
+
+        "prob1_bet": prob1_bet,
+        "prob1_return": prob1_return,
+        "prob1_roi": round((prob1_return / prob1_bet) * 100, 1) if prob1_bet else 0,
+
+        "value1_bet": value1_bet,
+        "value1_return": value1_return,
+        "value1_roi": round((value1_return / value1_bet) * 100, 1) if value1_bet else 0,
+
+        "top3_place_bet": top3_place_bet,
+        "top3_place_return": top3_place_return,
+        "top3_place_roi": round((top3_place_return / top3_place_bet) * 100, 1) if top3_place_bet else 0,
+    }
+
+    return render(request, "keibaapp_1/roi.html", {
+        "summary": summary,
+        "detail_rows": detail_rows,
+        "chart_labels": chart_labels,
+        "chart_prob1_roi": chart_prob1_roi,
+        "chart_value1_roi": chart_value1_roi,
+        "chart_top3_place_roi": chart_top3_place_roi,
+    })

@@ -13,6 +13,19 @@
   <span class="badge">重賞 {{ race.grade }}</span>
   <span class="badge">{{ race.course }}</span>
   <span class="badge">想定ペース：{{ race.pace }}（{{ race.pace_comment }}）</span>
+
+  <!-- 🔒 Snapshot状態（運営のみ表示） -->
+  {% if debug or request.user.is_staff %}
+    <span class="badge" style="background:#222;color:#fff;">
+      {% if snapshot_created %}
+        🟢 Snapshot新規保存
+      {% elif snapshot_id %}
+        🔵 Snapshot保存済み（ID:{{ snapshot_id }}）
+      {% else %}
+        ⚪ 未保存
+      {% endif %}
+    </span>
+  {% endif %}
 </div>
 
 
@@ -78,7 +91,7 @@
       <td>{{ r.odds }}</td>
     </tr>
 
-    <!-- ▼ 詳細（開発用：後で消してOK） -->
+    <!-- ▼ 詳細 -->
     <tr>
       <td colspan="8" style="font-size:12px;color:#888;padding:4px 0 10px 0;">
         上がり順位: {{ r.agari_avg_rank|default:"-" }} /
@@ -98,7 +111,7 @@
 
 
 <!-- =========================
-CTAエリア（収益導線）
+CTAエリア
 ========================= -->
 <section style="
 max-width:900px;

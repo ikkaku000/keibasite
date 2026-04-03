@@ -1,0 +1,143 @@
+{% extends "keibaapp_1/base.html" %}
+
+{% block title %}回収率検証{% endblock %}
+
+{% block content %}
+
+<section style="max-width:1100px; margin:auto;">
+
+  <h1 style="margin-bottom:10px;">回収率検証</h1>
+
+  <p style="color:#666; margin-bottom:20px;">
+    保存済み Snapshot と実結果をもとに、戦略ごとの回収率を確認できます。
+    現在のモデルバージョン: <b>{{ summary.model_version }}</b>
+  </p>
+
+  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px;">
+    <div style="border:1px solid #e5e5e5; border-radius:14px; padding:18px; background:#fafafa;">
+      <div style="font-size:13px; color:#777;">疑似勝率1位 単勝</div>
+      <div style="font-size:30px; font-weight:700; margin:8px 0;">{{ summary.prob1_roi }}%</div>
+      <div style="color:#666;">投資 {{ summary.prob1_bet }}円 / 回収 {{ summary.prob1_return }}円</div>
+    </div>
+
+    <div style="border:1px solid #e5e5e5; border-radius:14px; padding:18px; background:#fafafa;">
+      <div style="font-size:13px; color:#777;">妙味1位 単勝</div>
+      <div style="font-size:30px; font-weight:700; margin:8px 0;">{{ summary.value1_roi }}%</div>
+      <div style="color:#666;">投資 {{ summary.value1_bet }}円 / 回収 {{ summary.value1_return }}円</div>
+    </div>
+
+    <div style="border:1px solid #e5e5e5; border-radius:14px; padding:18px; background:#fafafa;">
+      <div style="font-size:13px; color:#777;">疑似勝率上位3頭 複勝</div>
+      <div style="font-size:30px; font-weight:700; margin:8px 0;">{{ summary.top3_place_roi }}%</div>
+      <div style="color:#666;">投資 {{ summary.top3_place_bet }}円 / 回収 {{ summary.top3_place_return }}円</div>
+    </div>
+  </div>
+
+  <div style="border:1px solid #e5e5e5; border-radius:16px; padding:22px; background:#fff; margin-bottom:28px;">
+    <h2 style="margin-top:0; margin-bottom:18px;">回収率推移グラフ</h2>
+    <canvas id="roiChart" height="120"></canvas>
+  </div>
+
+  <div style="border:1px solid #e5e5e5; border-radius:16px; overflow:hidden; background:#fff;">
+    <div style="padding:18px 20px; border-bottom:1px solid #eee;">
+      <h2 style="margin:0;">レース別詳細</h2>
+      <p style="margin:8px 0 0; color:#666;">対象レース数: {{ summary.race_count }}</p>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f7f7f7;">
+            <th style="text-align:left; padding:12px;">日付</th>
+            <th style="text-align:left; padding:12px;">レース名</th>
+            <th style="text-align:left; padding:12px;">格</th>
+            <th style="text-align:left; padding:12px;">想定P</th>
+            <th style="text-align:left; padding:12px;">疑似勝率1位</th>
+            <th style="text-align:right; padding:12px;">単勝回収</th>
+            <th style="text-align:left; padding:12px;">妙味1位</th>
+            <th style="text-align:right; padding:12px;">単勝回収</th>
+            <th style="text-align:right; padding:12px;">上位3頭複勝回収</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in detail_rows %}
+          <tr style="border-top:1px solid #eee;">
+            <td style="padding:12px;">{{ r.race_date }}</td>
+            <td style="padding:12px;">{{ r.race_name }}</td>
+            <td style="padding:12px;">{{ r.grade }}</td>
+            <td style="padding:12px;">{{ r.pace }}</td>
+            <td style="padding:12px;">{{ r.prob1_name }}</td>
+            <td style="padding:12px; text-align:right;">{{ r.prob1_return }}円</td>
+            <td style="padding:12px;">{{ r.value1_name }}</td>
+            <td style="padding:12px; text-align:right;">{{ r.value1_return }}円</td>
+            <td style="padding:12px; text-align:right;">{{ r.top3_place_return }}円</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" style="padding:20px; color:#666;">
+              まだ集計できる Snapshot がありません。Snapshot保存と実結果入力を進めてください。
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels = {{ chart_labels|safe }};
+  const prob1Data = {{ chart_prob1_roi|safe }};
+  const value1Data = {{ chart_value1_roi|safe }};
+  const top3PlaceData = {{ chart_top3_place_roi|safe }};
+
+  const ctx = document.getElementById('roiChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: '疑似勝率1位 単勝回収率',
+          data: prob1Data,
+          borderWidth: 2,
+          tension: 0.2
+        },
+        {
+          label: '妙味1位 単勝回収率',
+          data: value1Data,
+          borderWidth: 2,
+          tension: 0.2
+        },
+        {
+          label: '疑似勝率上位3頭 複勝回収率',
+          data: top3PlaceData,
+          borderWidth: 2,
+          tension: 0.2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          suggestedMax: 200,
+          title: {
+            display: true,
+            text: '回収率 (%)'
+          }
+        }
+      }
+    }
+  });
+</script>
+
+{% endblock %}

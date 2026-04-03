@@ -21,4 +21,6 @@ urlpatterns = [
     # Snapshot保存（重要）
     # =========================
     path("save_snapshot/", views.save_race_snapshot, name="save_race_snapshot"),
+
+    path("roi/", views.roi_page, name="roi_page"),
 ]
