@@ -3,73 +3,156 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}競馬MVP{% endblock %}</title>
+
+  <title>{% block title %}前残り展開分析 | 中央競馬 重賞限定{% endblock %}</title>
+
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; }
-    .badge { display:inline-block; padding:2px 8px; border:1px solid #aaa; border-radius:999px; font-size:12px; margin-right:6px; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      background: #f7f8fb;
+      color: #222;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* =========================
+    ヘッダー
+    ========================= */
+    .header {
+      background: #111;
+      color: #fff;
+      padding: 16px 20px;
+    }
+
+    .headerInner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .siteTitle {
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .siteSub {
+      font-size: 12px;
+      color: #bbb;
+    }
+
+    .nav {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+
+    .nav a {
+      color: #ddd;
+    }
+
+    .nav a:hover {
+      color: #fff;
+    }
+
+    /* =========================
+    コンテンツ
+    ========================= */
+    .container {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .badge {
+      display:inline-block;
+      padding:2px 8px;
+      border:1px solid #aaa;
+      border-radius:999px;
+      font-size:12px;
+      margin-right:6px;
+    }
+
     .meta { margin: 8px 0 16px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+
     th { background: #f6f6f6; }
-    .top { font-weight: 700; }
-    .card { border:1px solid #ddd; border-radius:12px; padding:16px; margin:16px 0; }
-    a { text-decoration: none; }
-    .nav { margin-bottom: 14px; }
 
-    .container { max-width: 980px; margin: 0 auto; }
-  .hero {
-    min-height: 78vh;
-    border-radius: 18px;
-    overflow: hidden;
-    position: relative;
-    background-size: cover;
-    background-position: center;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.12);
-  }
-  .heroOverlay { position:absolute; inset:0; background: linear-gradient(90deg, rgba(0,0,0,0.62), rgba(0,0,0,0.22)); }
-  .heroInner { position: relative; padding: 42px 28px; color: #fff; }
-  .heroTitle { font-size: 36px; line-height: 1.15; margin: 14px 0 10px; }
-  .heroLead { font-size: 16px; color: rgba(255,255,255,0.92); margin: 0 0 18px; }
-  .ctaRow { display:flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 6px; }
-  .btn {
-    display:inline-block; padding: 12px 16px; border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.75);
-    color:#fff; font-weight: 800;
-    background: rgba(255,255,255,0.10);
-    backdrop-filter: blur(6px);
-  }
-  .btnPrimary { background: rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.85); }
-  .btnGhost { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.55); font-weight: 700; }
+    .card {
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:16px;
+      margin:16px 0;
+      background:#fff;
+    }
 
-  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
-  .kpi {
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 14px;
-    padding: 12px 14px;
-  }
-  .kpi b { display:block; font-size: 13px; opacity: 0.92; }
-  .kpi span { display:block; font-size: 18px; margin-top: 4px; font-weight: 800; }
+    /* =========================
+    フッター
+    ========================= */
+    .footer {
+      margin-top: 40px;
+      padding: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+    }
 
-  .section { margin: 22px 0; }
-  .grid3 { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 12px; }
-  .card2 {
-    border:1px solid #e4e4e4; border-radius: 14px;
-    padding: 14px 14px; background: #fff;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.06);
-  }
-  .muted { color:#666; font-size: 13px; }
-  .pill { display:inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.55); font-size: 12px; margin-right: 6px; }
-  .divider { margin: 18px 0; border: 0; border-top: 1px solid #eee; }
   </style>
 </head>
+
 <body>
 
-  <div class="nav">
-    <a href="/">ランキング</a> / <a href="/top/">上位3頭</a>
-  </div>
+  <!-- =========================
+  ヘッダー
+  ========================= -->
+  <header class="header">
+    <div class="headerInner">
 
-  {% block content %}{% endblock %}
+      <div>
+        <div class="siteTitle">前残り展開分析</div>
+        <div class="siteSub">中央競馬 重賞限定 / 4角位置から前残りを読む</div>
+      </div>
+
+      <nav class="nav">
+        <a href="/">無料分析</a>
+        <a href="/top/">上位3頭</a>
+        <a href="/races/">重賞一覧</a>
+        <a href="/about/">ロジック</a>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- =========================
+  コンテンツ
+  ========================= -->
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- =========================
+  フッター
+  ========================= -->
+  <footer class="footer">
+    前残り展開分析｜4角位置・脚質・ペースから前で残る馬を整理するサイト<br>
+    ※本サイトは情報提供を目的としており、馬券購入を推奨するものではありません。
+  </footer>
 
 </body>
 </html>
