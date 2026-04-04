@@ -5,14 +5,15 @@
 {% block content %}
 
 <h1 style="margin-bottom:10px;">
-{{ race.name }}
+  {{ race.name }}
 </h1>
 
-<div class="meta" style="margin-bottom:14px;">
+<div class="meta" style="margin-bottom:14px; display:flex; flex-wrap:wrap; gap:8px;">
   <span class="badge">中央競馬</span>
   <span class="badge">重賞 {{ race.grade }}</span>
   <span class="badge">{{ race.course }}</span>
-  <span class="badge">想定ペース：{{ race.pace }}（{{ race.pace_comment }}）</span>
+  <span class="badge">想定ペース：{{ race.pace }}</span>
+  <span class="badge">{{ race.pace_comment }}</span>
 
   {% if debug or request.user.is_staff %}
     <span class="badge" style="background:#222;color:#fff;">
@@ -24,31 +25,40 @@
         ⚪ 未保存
       {% endif %}
     </span>
+    <span class="badge" style="background:#1f2937;color:#fff;">
+      model: {{ model_version }}
+    </span>
   {% endif %}
 </div>
 
 <section style="
-margin-bottom:22px;
-padding:18px 20px;
-border:1px solid #e8e8e8;
-border-radius:16px;
-background:#fafafa;
+  margin-bottom:22px;
+  padding:18px 20px;
+  border:1px solid #e8e8e8;
+  border-radius:16px;
+  background:#fafafa;
 ">
   <h2 style="margin:0 0 8px 0;font-size:20px;">このページの見方</h2>
-  <p style="margin:0;color:#555;line-height:1.8;">
+  <p style="margin:0;color:#555;line-height:1.9;">
     このランキングは、<b>勝ち馬予想ではなく</b>、
     <b>4角で前につけて3着内に残る可能性が高い馬</b>を重視しています。<br>
-    ワイド・3連複で相手に残る可能性を見たいときに使う想定です。
+    特に、<b>前で運べる再現性</b>、
+    <b>位置取りの安定感</b>、
+    <b>人気と先行力のズレ</b>を見ながら、
+    ワイド・3連複で相手に使いやすい馬を探す想定です。
   </p>
 </section>
 
 {% if rows %}
 <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;">
-  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:#fffdf7;">
+  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:#fff7e8;">
     <div style="font-size:12px;color:#888;margin-bottom:6px;">前残り本命候補</div>
     <div style="font-size:22px;font-weight:700;">{{ rows.0.horse_name }}</div>
     <div style="margin-top:6px;color:#666;">
-      {{ rows.0.style }} / 前残り期待度 {{ rows.0.win_prob }} / 妙味 {{ rows.0.ev|floatformat:2 }}
+      {{ rows.0.style }} / {{ rows.0.place_label }}
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
+      {{ rows.0.reason }}
     </div>
   </div>
 
@@ -59,9 +69,16 @@ background:#fafafa;
     </div>
     <div style="margin-top:6px;color:#666;">
       {% if rows|length > 1 %}
-        {{ rows.1.style }} / 前残り期待度 {{ rows.1.win_prob }} / 妙味 {{ rows.1.ev|floatformat:2 }}
+        {{ rows.1.style }} / {{ rows.1.place_label }}
       {% else %}
         データなし
+      {% endif %}
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
+      {% if rows|length > 1 %}
+        {{ rows.1.reason }}
+      {% else %}
+        -
       {% endif %}
     </div>
   </div>
@@ -73,160 +90,263 @@ background:#fafafa;
     </div>
     <div style="margin-top:6px;color:#666;">
       {% if rows|length > 2 %}
-        {{ rows.2.style }} / 前残り期待度 {{ rows.2.win_prob }} / 妙味 {{ rows.2.ev|floatformat:2 }}
+        {{ rows.2.style }} / {{ rows.2.place_label }}
       {% else %}
         データなし
+      {% endif %}
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
+      {% if rows|length > 2 %}
+        {{ rows.2.reason }}
+      {% else %}
+        -
       {% endif %}
     </div>
   </div>
 </section>
 {% endif %}
 
-<table style="width:100%;border-collapse:collapse;">
-  <thead>
-    <tr style="background:#f5f5f5;">
-      <th>順位</th>
-      <th>馬名</th>
-      <th>脚質</th>
-      <th>4角先行力</th>
-      <th>前残り指数</th>
-      <th>前残り期待度</th>
-      <th>妙味</th>
-      <th>想定オッズ</th>
-    </tr>
-  </thead>
+<section style="
+  margin-bottom:22px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+">
+  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
+    <div style="font-size:12px;color:#888;">想定ペース</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px;">{{ race.pace }}</div>
+  </div>
 
-  <tbody>
-    {% for r in rows %}
-    <tr
-      style="
-      border-bottom:1px solid #eee;
-      {% if forloop.first %}
-        background:#fff7e6;
-        font-weight:bold;
-      {% elif forloop.counter <= 3 %}
-        background:#fcfcfc;
-      {% endif %}
-      "
-    >
-      <td>{{ r.rank }}</td>
+  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
+    <div style="font-size:12px;color:#888;">前圧比率</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px;">
+      {{ race.front_ratio|default:"-" }}
+    </div>
+  </div>
 
-      <td>
-        {{ r.horse_name }}
-        {% if forloop.first %}
-          <span style="margin-left:6px;font-size:11px;color:#b26a00;">本命候補</span>
-        {% elif forloop.counter == 2 %}
-          <span style="margin-left:6px;font-size:11px;color:#666;">相手候補</span>
-        {% elif forloop.counter == 3 %}
-          <span style="margin-left:6px;font-size:11px;color:#d32f2f;">先行穴候補</span>
-        {% endif %}
-      </td>
+  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
+    <div style="font-size:12px;color:#888;">逃げ候補数</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px;">
+      {{ race.meta.n_nige|default:"-" }}
+    </div>
+  </div>
 
-      <td>{{ r.style }}</td>
+  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
+    <div style="font-size:12px;color:#888;">前受け候補数</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px;">
+      {{ race.meta.n_front|default:"-" }}
+    </div>
+  </div>
+</section>
 
-      <td>{{ r.corner4_index|default:"-" }}</td>
+<div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;min-width:1180px;">
+    <thead>
+      <tr style="background:#f5f5f5;">
+        <th style="padding:12px 10px;">順位</th>
+        <th style="padding:12px 10px;text-align:left;">馬名</th>
+        <th style="padding:12px 10px;">評価</th>
+        <th style="padding:12px 10px;">脚質</th>
+        <th style="padding:12px 10px;">4角指数</th>
+        <th style="padding:12px 10px;">5番手以内率</th>
+        <th style="padding:12px 10px;">3番手以内率</th>
+        <th style="padding:12px 10px;">位置取り安定感</th>
+        <th style="padding:12px 10px;">前残り指数</th>
+        <th style="padding:12px 10px;">相対評価</th>
+        <th style="padding:12px 10px;">妙味</th>
+        <th style="padding:12px 10px;">想定オッズ</th>
+      </tr>
+    </thead>
 
-      <td>{{ r.tempo|floatformat:2 }}</td>
-
-      <td>
-        <b>{{ r.win_prob }}</b>
-      </td>
-
-      <td>
-        <b style="
-          {% if r.ev and r.ev > 1.5 %}
-            color:#e53935;
-          {% elif r.ev and r.ev > 1.0 %}
-            color:#ff9800;
+    <tbody>
+      {% for r in rows %}
+      <tr
+        style="
+          border-bottom:1px solid #eee;
+          {% if forloop.first %}
+            background:#fff7e6;
+            font-weight:bold;
+          {% elif forloop.counter <= 3 %}
+            background:#fcfcfc;
           {% endif %}
-        ">
-          {{ r.ev|floatformat:2 }}
-        </b>
-      </td>
+        "
+      >
+        <td style="padding:12px 10px;text-align:center;">{{ r.rank }}</td>
 
-      <td>{{ r.odds }}</td>
-    </tr>
+        <td style="padding:12px 10px;">
+          <div style="font-weight:700;">
+            {{ r.horse_name }}
+            {% if forloop.first %}
+              <span style="margin-left:6px;font-size:11px;color:#b26a00;">本命候補</span>
+            {% elif forloop.counter == 2 %}
+              <span style="margin-left:6px;font-size:11px;color:#666;">相手候補</span>
+            {% elif forloop.counter == 3 %}
+              <span style="margin-left:6px;font-size:11px;color:#d32f2f;">注目候補</span>
+            {% endif %}
+          </div>
+          <div style="margin-top:4px;font-size:12px;color:#666;line-height:1.6;">
+            {{ r.reason }}
+          </div>
+        </td>
 
-    <tr>
-      <td colspan="8" style="font-size:12px;color:#888;padding:5px 0 10px 0;">
-        上がり順位: {{ r.agari_avg_rank|default:"-" }} /
-        前残り評価の補助データとして表示しています
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        <td style="padding:12px 10px;text-align:center;">
+          <span style="
+            display:inline-block;
+            padding:5px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+            background:
+              {% if r.place_label == '前残り本命候補' %}#fff0c7
+              {% elif r.place_label == 'ワイド相手候補' %}#f2f4f7
+              {% elif r.place_label == '先行穴候補' %}#ffe3e3
+              {% elif r.place_label == '後方リスクあり' %}#f1f1f1
+              {% else %}#f6f6f6{% endif %};
+            color:
+              {% if r.place_label == '前残り本命候補' %}#8a5a00
+              {% elif r.place_label == '先行穴候補' %}#c62828
+              {% else %}#444{% endif %};
+          ">
+            {{ r.place_label }}
+          </span>
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">{{ r.style }}</td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.corner4_index|default:"-" }}
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.front5_rate|floatformat:1 }}%
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.front3_rate|floatformat:1 }}%
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.consistency|floatformat:1 }}%
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          <b>{{ r.tempo|floatformat:2 }}</b>
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.win_prob }}%
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          <b style="
+            {% if r.ev and r.ev > 1.5 %}
+              color:#e53935;
+            {% elif r.ev and r.ev > 1.0 %}
+              color:#ff9800;
+            {% endif %}
+          ">
+            {{ r.ev|floatformat:2 }}
+          </b>
+        </td>
+
+        <td style="padding:12px 10px;text-align:center;">
+          {{ r.odds|default:"-" }}
+        </td>
+      </tr>
+
+      <tr>
+        <td colspan="12" style="padding:6px 10px 14px 10px;font-size:12px;color:#777;line-height:1.8;background:#fff;">
+          4角平均位置: {{ r.avg_corner4_pos|default:"-" }} /
+          逃げ率: {{ r.nige_rate|floatformat:1 }}% /
+          位置ブレ: {{ r.std_corner4_pos|default:"-" }} /
+          上がり平均順位: {{ r.agari_avg_rank|default:"-" }} /
+          データ信頼度: {{ r.data_confidence|default:"-" }}
+          {% if debug %}
+            <br>
+            front_keep: {{ r.front_keep_score|default:"-" }} /
+            style: {{ r.style_score|default:"-" }} /
+            resilience: {{ r.pace_resilience_score|default:"-" }} /
+            agari: {{ r.agari_score|default:"-" }} /
+            odds: {{ r.odds_score|default:"-" }} /
+            senko_hole: {{ r.senko_hole_score|default:"-" }} /
+            back_penalty: {{ r.back_penalty|default:"-" }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 <div style="
-margin-top:20px;
-padding:16px 18px;
-border:1px solid #eee;
-border-radius:14px;
-background:#fff;
-color:#555;
-line-height:1.8;
+  margin-top:20px;
+  padding:16px 18px;
+  border:1px solid #eee;
+  border-radius:14px;
+  background:#fff;
+  color:#555;
+  line-height:1.9;
 ">
   <b>使い方の目安</b><br>
   1位は「前残り本命候補」、2〜3位は「ワイド・3連複の相手候補」として見る想定です。<br>
-  妙味が高い馬は、人気のわりに前で残る余地がある馬としてチェックしやすくしています。
+  5番手以内率・3番手以内率が高い馬は、4角で前に収まる再現性がある馬としてチェックしやすくしています。<br>
+  妙味が高い馬は、人気のわりに前で残る余地がある馬として注目しやすくしています。
 </div>
 
 <hr style="margin:40px 0;">
 
 <section style="
-max-width:900px;
-margin:auto;
-border:1px solid #e5e5e5;
-border-radius:16px;
-padding:28px;
-background:#fafafa;
-text-align:center;
+  max-width:900px;
+  margin:auto;
+  border:1px solid #e5e5e5;
+  border-radius:16px;
+  padding:28px;
+  background:#fafafa;
+  text-align:center;
 ">
+  <h2 style="margin-bottom:10px;">
+    この分析が役立ったら
+  </h2>
 
-<h2 style="margin-bottom:10px;">
-この分析が役立ったら
-</h2>
+  <p style="color:#666;margin-bottom:25px;line-height:1.8;">
+    現在は <b>今週の重賞1レースのみ無料公開</b>しています。<br>
+    他の重賞分析も見たい場合は、今後メンバー向け公開を予定しています。
+  </p>
 
-<p style="color:#666;margin-bottom:25px;">
-現在は <b>今週の重賞1レースのみ無料公開</b>しています。<br>
-他の重賞分析も見たい場合はメンバー登録を予定しています。
-</p>
+  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
 
-<div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+    <a href="/top/" style="
+      padding:12px 20px;
+      border-radius:10px;
+      background:#111;
+      color:#fff;
+      font-weight:bold;
+      text-decoration:none;
+    ">
+      上位3頭を見る
+    </a>
 
-<a href="/top/" style="
-padding:12px 20px;
-border-radius:10px;
-background:#111;
-color:#fff;
-font-weight:bold;
-text-decoration:none;
-">
-AI本命3頭を見る
-</a>
+    <a href="/about/" style="
+      padding:12px 20px;
+      border-radius:10px;
+      border:1px solid #999;
+      color:#333;
+      font-weight:bold;
+      text-decoration:none;
+      background:#fff;
+    ">
+      分析ロジックを見る
+    </a>
 
-<a href="/about/" style="
-padding:12px 20px;
-border-radius:10px;
-border:1px solid #999;
-color:#333;
-font-weight:bold;
-text-decoration:none;
-background:#fff;
-">
-分析ロジックを見る
-</a>
+  </div>
 
-</div>
-
-<p style="margin-top:20px;color:#888;font-size:13px;">
-※将来的に「全重賞分析」は有料メンバー限定になる予定です
-</p>
-
+  <p style="margin-top:20px;color:#888;font-size:13px;">
+    ※将来的に「全重賞分析」はメンバー限定で公開予定です
+  </p>
 </section>
 
 <p style="margin-top:16px;">
-  <a href="/top/">上位3頭の理由を見る →</a>
+  <a href="/top/">上位3頭の要点を見る →</a>
 </p>
 
 {% endblock %}

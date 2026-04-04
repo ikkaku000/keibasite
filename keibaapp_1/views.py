@@ -4,9 +4,13 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Prefetch
-from .models import EntryAnalysisSnapshot, EntryResultSnapshot
 
-from .models import Race, RaceAnalysisSnapshot
+from .models import (
+    Race,
+    RaceAnalysisSnapshot,
+    EntryAnalysisSnapshot,
+    EntryResultSnapshot,
+)
 from .services import (
     display_run_style,
     analyze_entries,
@@ -14,7 +18,7 @@ from .services import (
 )
 
 
-MODEL_VERSION = "v2"
+MODEL_VERSION = "v3_front_keep_place"
 
 
 def get_current_race():
@@ -50,7 +54,6 @@ def build_race_context(race, analysis):
         "pace_comment": analysis["pace_comment"],
         "front_ratio": analysis.get("front_ratio"),
         "field_agari_avg": analysis.get("field_agari_avg"),
-        "field_agari_3f_avg": analysis.get("field_agari_3f_avg"),
         "meta": analysis.get("meta", {}),
     }
 
@@ -64,23 +67,45 @@ def build_row_data(results, limit=None):
 
     rows = []
     for i, r in enumerate(results, start=1):
+        front_metrics = r.get("front_metrics", {}) or {}
+
         rows.append({
             "rank": i,
             "horse_name": r["horse_name"],
             "style": display_run_style(r["run_style"]),
-            "corner4_index": r["corner4_index"],
+            "run_style_code": r["run_style"],
+
+            "corner4_index": r.get("corner4_index"),
             "agari_avg_rank": r.get("agari_avg_rank"),
-            "agari_avg_3f": r.get("agari_avg_3f"),
+
             "tempo": r["tempo"],
-            "win_prob": r["pseudo_win_prob"],
-            "ev": r["value_index"],
-            "odds": r["expected_odds"],
+            "tempo_raw": r.get("tempo_raw"),
+            "win_prob": r.get("pseudo_win_prob"),
+            "ev": r.get("value_index"),
+            "odds": r.get("expected_odds"),
+
+            # 新ロジック対応
+            "place_label": r.get("place_label"),
+            "reason": r.get("reason"),
+            "data_confidence": r.get("data_confidence"),
+
+            # front_metrics 展開表示用
+            "front5_rate": round(front_metrics.get("front5_rate", 0.0) * 100, 1),
+            "front3_rate": round(front_metrics.get("front3_rate", 0.0) * 100, 1),
+            "nige_rate": round(front_metrics.get("nige_rate", 0.0) * 100, 1),
+            "avg_corner4_pos": front_metrics.get("avg_corner4_pos"),
+            "std_corner4_pos": front_metrics.get("std_corner4_pos"),
+            "consistency": round(front_metrics.get("consistency", 0.0) * 100, 1),
+            "valid_count": front_metrics.get("valid_count", 0),
+
+            # デバッグ / 詳細表示用
+            "front_keep_score": r.get("front_keep_score"),
             "style_score": r.get("style_score"),
-            "agari_rank_rel": r.get("agari_rank_rel"),
-            "agari_3f_rel": r.get("agari_3f_rel"),
-            "ability_score": r.get("ability_score"),
-            "jockey_score": r.get("jockey_score"),
-            "gate_score": r.get("gate_score"),
+            "pace_resilience_score": r.get("pace_resilience_score"),
+            "agari_score": r.get("agari_score"),
+            "odds_score": r.get("odds_score"),
+            "senko_hole_score": r.get("senko_hole_score"),
+            "back_penalty": r.get("back_penalty"),
         })
     return rows
 
@@ -166,6 +191,7 @@ def race_db(request):
         "snapshot_id": snapshot.id if snapshot else None,
         "snapshot_created": snapshot_created,
         "snapshot_status": snapshot_status,
+        "model_version": MODEL_VERSION,
     }
     return render(request, "keibaapp_1/race_mock.html", context)
 
@@ -187,6 +213,7 @@ def top3_db(request):
         "rows": build_row_data(analysis["results"], limit=3),
         "analysis": analysis,
         "debug": settings.DEBUG,
+        "model_version": MODEL_VERSION,
     }
     return render(request, "keibaapp_1/top3_mock.html", context)
 
@@ -207,16 +234,18 @@ def save_race_snapshot(request):
 
     return HttpResponse(f"saved snapshot id={snapshot.id}")
 
+
 def roi_page(request):
     """
     Snapshotベースの簡易回収率ページ
+
     - 集計対象: EntryResultSnapshot が入っているもの
     - strategy:
-        prob1  = 疑似勝率1位を単勝100円で買った想定
-        value1 = 妙味順位1位を単勝100円で買った想定
-        top3_place = 疑似勝率上位3頭を複勝100円ずつ買った想定
+        prob1       = 疑似確率1位を単勝100円で買った想定
+        value1      = 妙味順位1位を単勝100円で買った想定
+        top3_place  = 疑似確率上位3頭を複勝100円ずつ買った想定
     """
-    model_version = request.GET.get("model_version", "v2")
+    model_version = request.GET.get("model_version", MODEL_VERSION)
 
     snapshots = (
         EntryAnalysisSnapshot.objects
@@ -295,24 +324,24 @@ def roi_page(request):
         race_top3_place_bet = 0
         race_top3_place_return = 0
 
-        # 疑似勝率1位 単勝100円
+        # 疑似確率1位 単勝100円
         if prob1 and hasattr(prob1, "result_snapshot"):
             race_prob1_bet += 100
-            if prob1.result_snapshot.win_payoff:
+            if prob1.result_snapshot and prob1.result_snapshot.win_payoff:
                 race_prob1_return += prob1.result_snapshot.win_payoff
 
         # 妙味1位 単勝100円
         if value1 and hasattr(value1, "result_snapshot"):
             race_value1_bet += 100
-            if value1.result_snapshot.win_payoff:
+            if value1.result_snapshot and value1.result_snapshot.win_payoff:
                 race_value1_return += value1.result_snapshot.win_payoff
 
-        # 疑似勝率上位3頭 複勝100円ずつ
+        # 疑似確率上位3頭 複勝100円ずつ
         valid_top3_count = 0
         for r in top3:
             if hasattr(r, "result_snapshot"):
                 valid_top3_count += 1
-                if r.result_snapshot.place_payoff:
+                if r.result_snapshot and r.result_snapshot.place_payoff:
                     race_top3_place_return += r.result_snapshot.place_payoff
 
         if valid_top3_count > 0:
@@ -379,4 +408,5 @@ def roi_page(request):
         "chart_prob1_roi": chart_prob1_roi,
         "chart_value1_roi": chart_value1_roi,
         "chart_top3_place_roi": chart_top3_place_roi,
+        "model_version": model_version,
     })

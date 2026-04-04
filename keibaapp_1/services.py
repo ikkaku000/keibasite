@@ -7,6 +7,10 @@ from .models import HorseEntry, RaceAnalysisSnapshot, EntryAnalysisSnapshot
 # 基本集計
 # =========================
 
+def clamp(value: float, min_value: float, max_value: float) -> float:
+    return max(min_value, min(max_value, value))
+
+
 def agari_rank_score(e: HorseEntry) -> Optional[float]:
     """
     過去3走の上がり順位の平均
@@ -71,6 +75,8 @@ def calc_front_metrics(entry: HorseEntry) -> dict:
     - front3_rate: 4角3番手以内率
     - front5_rate: 4角5番手以内率
     - avg_corner4_pos: 平均4角位置
+    - std_corner4_pos: 4角位置のブレ
+    - consistency: 前受け位置の安定性（0〜1）
     - valid_count: 有効レース数
     """
     valid_positions = []
@@ -91,6 +97,8 @@ def calc_front_metrics(entry: HorseEntry) -> dict:
             "front3_rate": 0.0,
             "front5_rate": 0.0,
             "avg_corner4_pos": None,
+            "std_corner4_pos": None,
+            "consistency": 0.0,
             "valid_count": 0,
         }
 
@@ -98,14 +106,48 @@ def calc_front_metrics(entry: HorseEntry) -> dict:
     front3_count = sum(1 for pos in valid_positions if pos <= 3)
     front5_count = sum(1 for pos in valid_positions if pos <= 5)
 
+    avg_pos = sum(valid_positions) / valid_count
+
+    if valid_count >= 2:
+        variance = sum((p - avg_pos) ** 2 for p in valid_positions) / valid_count
+        std_pos = variance ** 0.5
+    else:
+        std_pos = 0.0
+
+    # ブレが少ないほど高評価
+    consistency = clamp(1.0 - (std_pos / 5.0), 0.0, 1.0)
+
     return {
         "avg_index": sum(indices) / len(indices) if indices else None,
         "nige_rate": nige_count / valid_count,
         "front3_rate": front3_count / valid_count,
         "front5_rate": front5_count / valid_count,
-        "avg_corner4_pos": sum(valid_positions) / valid_count,
+        "avg_corner4_pos": avg_pos,
+        "std_corner4_pos": round(std_pos, 2) if std_pos is not None else None,
+        "consistency": round(consistency, 3),
         "valid_count": valid_count,
     }
+
+
+def get_data_confidence(entry: HorseEntry) -> float:
+    """
+    データ信頼度
+    サンプル数と位置取り安定性を加味
+    """
+    m = calc_front_metrics(entry)
+    valid_count = m["valid_count"]
+    consistency = m["consistency"]
+
+    if valid_count == 0:
+        return 0.0
+    if valid_count == 1:
+        base = 0.58
+    elif valid_count == 2:
+        base = 0.80
+    else:
+        base = 1.00
+
+    return round(base * (0.82 + 0.18 * consistency), 3)
 
 
 # =========================
@@ -178,7 +220,7 @@ def _front_weight(style: str) -> float:
     return {
         "NIGE": 1.55,
         "SENKO": 1.15,
-        "KOUI": 0.65,
+        "KOUI": 0.70,
         "SASHI": 0.12,
         "OIKOMI": 0.00,
         "UNKNOWN": 0.20,
@@ -201,13 +243,13 @@ def estimate_pace(entries: Iterable[HorseEntry]):
     n_nige = sum(1 for s in styles if s == "NIGE")
     n_front = sum(1 for s in styles if s in ("NIGE", "SENKO", "KOUI"))
 
-    if n_nige >= 2 and front_ratio >= 0.88:
+    if n_nige >= 2 and front_ratio >= 0.90:
         pace = "H"
         comment = "逃げ候補が複数いて前圧が高く、やや流れる想定"
-    elif front_ratio >= 0.82:
+    elif front_ratio >= 0.84:
         pace = "H"
         comment = "前圧は高めだが、極端な差し決着までは見込みにくい"
-    elif front_ratio >= 0.50:
+    elif front_ratio >= 0.52:
         pace = "M"
         comment = "先行勢は揃っており、平均ペース想定"
     else:
@@ -228,40 +270,40 @@ def estimate_pace(entries: Iterable[HorseEntry]):
 def run_style_point(style: str, pace: str, front_ratio: float) -> float:
     """
     脚質×ペース評価
-    差し追込の押し上げをかなり弱め、
+    差し追込の押し上げを弱め、
     先行残り思想に寄せる
     """
     base = {
-        "NIGE": 1.75,
+        "NIGE": 1.70,
         "SENKO": 1.95,
-        "KOUI": 1.65,
-        "SASHI": 1.20,
-        "OIKOMI": 0.95,
-        "UNKNOWN": 1.10,
-    }.get(style, 1.10)
+        "KOUI": 1.68,
+        "SASHI": 1.18,
+        "OIKOMI": 0.92,
+        "UNKNOWN": 1.05,
+    }.get(style, 1.05)
 
     if pace == "S":
         adj = {
-            "NIGE": 0.40 - 0.10 * front_ratio,
+            "NIGE": 0.38 - 0.10 * front_ratio,
             "SENKO": 0.34 - 0.08 * front_ratio,
             "KOUI": 0.18 - 0.04 * front_ratio,
-            "SASHI": -0.02 + 0.03 * front_ratio,
+            "SASHI": -0.03 + 0.03 * front_ratio,
             "OIKOMI": -0.12 + 0.03 * front_ratio,
             "UNKNOWN": 0.00,
         }
     elif pace == "H":
         adj = {
-            "NIGE": -0.22 - 0.10 * front_ratio,
-            "SENKO": -0.05 - 0.06 * front_ratio,
-            "KOUI": 0.02,
-            "SASHI": 0.08 + 0.04 * front_ratio,
-            "OIKOMI": 0.06 + 0.03 * front_ratio,
+            "NIGE": -0.26 - 0.10 * front_ratio,
+            "SENKO": -0.06 - 0.05 * front_ratio,
+            "KOUI": 0.04,
+            "SASHI": 0.08 + 0.03 * front_ratio,
+            "OIKOMI": 0.05 + 0.03 * front_ratio,
             "UNKNOWN": 0.00,
         }
     else:  # M
         adj = {
-            "NIGE": 0.12 - 0.06 * front_ratio,
-            "SENKO": 0.18 - 0.04 * front_ratio,
+            "NIGE": 0.10 - 0.06 * front_ratio,
+            "SENKO": 0.17 - 0.04 * front_ratio,
             "KOUI": 0.10,
             "SASHI": 0.02,
             "OIKOMI": -0.04,
@@ -269,6 +311,55 @@ def run_style_point(style: str, pace: str, front_ratio: float) -> float:
         }
 
     return base + adj.get(style, 0.0)
+
+
+def pace_resilience_score(entry: HorseEntry, pace: str) -> float:
+    """
+    前に行った上で残せるかの補助評価
+    ハイでも好位〜先行で踏ん張れる馬を少し残す
+    """
+    m = calc_front_metrics(entry)
+    avg_index = m["avg_index"]
+    front3_rate = m["front3_rate"]
+    front5_rate = m["front5_rate"]
+    consistency = m["consistency"]
+    valid_count = m["valid_count"]
+    style = get_effective_run_style(entry)
+
+    if valid_count == 0 or avg_index is None:
+        return 0.0
+
+    score = 0.0
+
+    # 基本は「前で運べる再現性」
+    score += 0.20 * consistency
+    score += 0.12 * front5_rate
+
+    if pace == "H":
+        if style == "NIGE":
+            score -= 0.16 * front3_rate
+        elif style == "SENKO":
+            score += 0.10 * front5_rate
+            score += 0.08 * consistency
+        elif style == "KOUI":
+            score += 0.06 * front5_rate
+
+        # ハイペースでも極端な後方馬は上げない
+        if avg_index < 35:
+            score -= 0.10
+
+    elif pace == "S":
+        if style in ("NIGE", "SENKO"):
+            score += 0.10 * front3_rate
+            score += 0.08 * consistency
+        elif style == "OIKOMI":
+            score -= 0.08
+
+    else:  # M
+        if style in ("SENKO", "KOUI"):
+            score += 0.06 * consistency
+
+    return score
 
 
 def front_keep_score(entry: HorseEntry, pace: str) -> float:
@@ -281,38 +372,44 @@ def front_keep_score(entry: HorseEntry, pace: str) -> float:
     nige_rate = m["nige_rate"]
     front3_rate = m["front3_rate"]
     front5_rate = m["front5_rate"]
+    consistency = m["consistency"]
     valid_count = m["valid_count"]
 
     if valid_count == 0 or avg_index is None:
-        return -0.40
+        return -0.45
 
     score = 0.0
 
     # 主役：5番手以内率
-    score += 2.40 * front5_rate
+    score += 2.55 * front5_rate
 
     # 前3再現性
-    score += 1.10 * front3_rate
+    score += 1.25 * front3_rate
 
     # ハナ経験
-    score += 0.35 * nige_rate
+    score += 0.30 * nige_rate
 
     # 平均4角位置指数
-    score += 0.018 * avg_index
+    score += 0.020 * avg_index
+
+    # 位置取りの安定感
+    score += 0.32 * consistency
 
     # データ不足ペナルティ
     if valid_count == 1:
-        score -= 0.18
+        score -= 0.22
     elif valid_count == 2:
-        score -= 0.08
+        score -= 0.10
 
     # ペースによる軽補正
     if pace == "H":
-        score -= 0.28 * nige_rate
+        score -= 0.30 * nige_rate
         score -= 0.10 * max(front3_rate - 0.66, 0.0)
+        score += 0.08 * consistency
     elif pace == "S":
-        score += 0.12 * front3_rate
-        score += 0.08 * front5_rate
+        score += 0.15 * front3_rate
+        score += 0.10 * front5_rate
+        score += 0.05 * consistency
 
     return score
 
@@ -326,7 +423,7 @@ def agari_point_relative(avg_rank: Optional[float], field_avg: Optional[float]) 
         return 0.0
 
     diff = field_avg - avg_rank
-    return max(-0.8, min(0.8, 0.22 * diff))
+    return clamp(0.20 * diff, -0.75, 0.75)
 
 
 def back_marker_penalty(entry: HorseEntry) -> float:
@@ -336,6 +433,7 @@ def back_marker_penalty(entry: HorseEntry) -> float:
     m = calc_front_metrics(entry)
     avg_index = m["avg_index"]
     front5_rate = m["front5_rate"]
+    front3_rate = m["front3_rate"]
 
     if avg_index is None:
         return 0.0
@@ -343,14 +441,17 @@ def back_marker_penalty(entry: HorseEntry) -> float:
     penalty = 0.0
 
     if front5_rate == 0:
-        penalty -= 0.55
+        penalty -= 0.62
     elif front5_rate < 0.34:
-        penalty -= 0.20
+        penalty -= 0.22
+
+    if front3_rate == 0 and avg_index < 35:
+        penalty -= 0.12
 
     if avg_index < 25:
-        penalty -= 0.30
+        penalty -= 0.32
     elif avg_index < 35:
-        penalty -= 0.12
+        penalty -= 0.14
 
     return penalty
 
@@ -367,22 +468,30 @@ def senko_value_score(entry: HorseEntry) -> float:
     front5_rate = m["front5_rate"]
     front3_rate = m["front3_rate"]
     avg_index = m["avg_index"]
+    consistency = m["consistency"]
 
     if avg_index is None:
         return 0.0
 
-    senko_power = (front5_rate * 0.6) + (front3_rate * 0.3) + (avg_index / 100.0 * 0.1)
+    senko_power = (
+        (front5_rate * 0.48)
+        + (front3_rate * 0.28)
+        + ((avg_index / 100.0) * 0.14)
+        + (consistency * 0.10)
+    )
 
     # 先行力が無い人気薄は評価しない
     if senko_power < 0.45:
         if odds >= 40:
-            return -0.12
+            return -0.14
         return 0.0
 
-    if 8.0 <= odds <= 30.0:
-        return 0.15 + 0.35 * senko_power
+    if 8.0 <= odds <= 15.0:
+        return 0.12 + 0.26 * senko_power
+    elif 15.0 < odds <= 30.0:
+        return 0.18 + 0.34 * senko_power
     elif 30.0 < odds <= 60.0:
-        return 0.05 + 0.30 * senko_power
+        return 0.08 + 0.26 * senko_power
     elif odds < 8.0:
         return 0.03
     else:
@@ -411,6 +520,79 @@ def odds_rank_score(odds: Optional[float]) -> float:
         return -0.08
 
 
+def build_reason(entry: HorseEntry, pace: str) -> str:
+    """
+    UI表示用の短い評価理由
+    """
+    m = calc_front_metrics(entry)
+    avg_index = m["avg_index"]
+    front3_rate = m["front3_rate"]
+    front5_rate = m["front5_rate"]
+    nige_rate = m["nige_rate"]
+    consistency = m["consistency"]
+    odds = entry.expected_odds or 0.0
+    style = get_effective_run_style(entry)
+
+    if avg_index is None:
+        return "近走の4角位置データが少なく、評価材料は限定的"
+
+    reasons = []
+
+    if front5_rate >= 0.67:
+        reasons.append("前で運べる再現性が高い")
+    elif front5_rate >= 0.34:
+        reasons.append("好位圏に収まる余地がある")
+
+    if front3_rate >= 0.67:
+        reasons.append("4角でかなり前につけやすい")
+    elif nige_rate >= 0.5:
+        reasons.append("ハナを切る形にも対応しやすい")
+
+    if consistency >= 0.72:
+        reasons.append("位置取りのブレが少ない")
+
+    if pace == "S" and style in ("NIGE", "SENKO"):
+        reasons.append("スロー想定で前残り恩恵を受けやすい")
+    elif pace == "H" and style == "SENKO":
+        reasons.append("流れても先行勢の中で残る余地がある")
+    elif pace == "H" and style == "NIGE":
+        reasons.append("前圧は課題だが単騎なら残り目もある")
+
+    if odds >= 10 and front5_rate >= 0.5:
+        reasons.append("人気の割に先行力があり妙味がある")
+
+    if not reasons:
+        if avg_index < 35:
+            return "後方寄りで前残り展開とはややズレる"
+        return "前残り向きとしては強調材料がやや薄い"
+
+    return "、".join(reasons[:3])
+
+
+def get_place_label(result_row: dict) -> str:
+    """
+    UI表示用ラベル
+    """
+    tempo = result_row.get("tempo_raw", 0.0)
+    front_keep = result_row.get("front_keep_score", 0.0)
+    senko_hole = result_row.get("senko_hole_score", 0.0)
+    odds = result_row.get("expected_odds", 0.0)
+
+    if tempo >= 5.00 and front_keep >= 3.10:
+        return "前残り本命候補"
+
+    if tempo >= 4.25:
+        return "ワイド相手候補"
+
+    if senko_hole >= 0.28 and odds >= 10:
+        return "先行穴候補"
+
+    if front_keep < 1.30:
+        return "後方リスクあり"
+
+    return "相手候補"
+
+
 # =========================
 # 個別スコア
 # =========================
@@ -429,38 +611,57 @@ def calc_scores(
     avg_agari_rank = agari_rank_score(entry)
     effective_style = get_effective_run_style(entry)
     avg_idx = avg_corner4_index(entry)
+    front_metrics = calc_front_metrics(entry)
+    data_confidence = get_data_confidence(entry)
 
     style_score = run_style_point(effective_style, pace, front_ratio)
     front_score = front_keep_score(entry, pace)
+    resilience_score = pace_resilience_score(entry, pace)
     agari_score = agari_point_relative(avg_agari_rank, field_agari_avg)
     odds_score = odds_rank_score(entry.expected_odds)
     senko_hole_score = senko_value_score(entry)
     back_penalty = back_marker_penalty(entry)
 
     place_fit_raw = (
-        front_score * 1.35
-        + style_score * 0.75
-        + agari_score * 0.45
+        front_score * 1.38
+        + style_score * 0.72
+        + resilience_score * 0.70
+        + agari_score * 0.40
         + odds_score
         + senko_hole_score
         + back_penalty
     )
 
-    return {
+    # 信頼度が低いときは微調整だけかける
+    if data_confidence < 0.70:
+        place_fit_raw -= 0.10
+    elif data_confidence >= 0.95:
+        place_fit_raw += 0.04
+
+    row = {
         "tempo_raw": place_fit_raw,
         "tempo": round(place_fit_raw, 2),
         "run_style": effective_style,
         "corner4_index": round(avg_idx, 1) if avg_idx is not None else None,
         "agari_avg_rank": round(avg_agari_rank, 2) if avg_agari_rank is not None else None,
 
+        # 追加表示用
+        "front_metrics": front_metrics,
+        "data_confidence": data_confidence,
+        "reason": build_reason(entry, pace),
+
         # デバッグ用
         "front_keep_score": round(front_score, 3),
         "style_score": round(style_score, 3),
+        "pace_resilience_score": round(resilience_score, 3),
         "agari_score": round(agari_score, 3),
         "odds_score": round(odds_score, 3),
         "senko_hole_score": round(senko_hole_score, 3),
         "back_penalty": round(back_penalty, 3),
     }
+
+    row["place_label"] = get_place_label(row)
+    return row
 
 
 # =========================
@@ -517,15 +718,18 @@ def attach_win_probs(results: list[dict], temperature: float = 1.05) -> list[dic
         odds = r.get("expected_odds") or 0.0
         front_keep = r.get("front_keep_score", 0.0)
         senko_hole = r.get("senko_hole_score", 0.0)
+        resilience = r.get("pace_resilience_score", 0.0)
 
         if odds > 0:
             base_value = p * sqrt(odds)
 
             # 先行力がある人気薄は残す
-            if front_keep >= 2.2:
+            if front_keep >= 2.3:
                 base_value *= 1.08
             if senko_hole >= 0.30:
                 base_value *= 1.10
+            if resilience >= 0.18:
+                base_value *= 1.04
 
             # 後方専用人気薄の暴れは抑える
             if front_keep < 1.2 and odds >= 20:
@@ -582,11 +786,16 @@ def analyze_entries(entries: Iterable[HorseEntry]) -> dict:
 
     results = attach_win_probs(results)
 
+    # ラベルを確定し直す
+    for r in results:
+        r["place_label"] = get_place_label(r)
+
     # あなたの理論に寄せて、
     # 基本は place_fit_raw 寄り（tempo）で並べる
     results.sort(
         key=lambda x: (
             x["tempo"],
+            x["front_keep_score"],
             x["pseudo_win_prob"],
             x["value_index"] if x["value_index"] is not None else -999999,
         ),
@@ -607,7 +816,7 @@ def analyze_entries(entries: Iterable[HorseEntry]) -> dict:
 # 分析結果保存
 # =========================
 
-def save_analysis_snapshot(race, analysis, model_version="v2_senko_place"):
+def save_analysis_snapshot(race, analysis, model_version="v3_front_keep_place"):
     race_snapshot = RaceAnalysisSnapshot.objects.create(
         race=race,
         predicted_pace=analysis["pace"],
