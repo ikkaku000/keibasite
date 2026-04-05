@@ -62,14 +62,20 @@ def build_row_data(results, limit=None):
     """
     analysis["results"] をテンプレート表示用の rows に変換
     """
-    if limit is not None:
-        results = results[:limit]
+    # 先に全件から妙味指数トップを判定
+    valid_evs = [
+        r.get("value_index")
+        for r in results
+        if r.get("value_index") is not None
+    ]
+    best_ev = max(valid_evs) if valid_evs else None
 
-    rows = []
+    all_rows = []
     for i, r in enumerate(results, start=1):
         front_metrics = r.get("front_metrics", {}) or {}
+        ev = r.get("value_index")
 
-        rows.append({
+        all_rows.append({
             "rank": i,
             "horse_name": r["horse_name"],
             "style": display_run_style(r["run_style"]),
@@ -81,13 +87,14 @@ def build_row_data(results, limit=None):
             "tempo": r["tempo"],
             "tempo_raw": r.get("tempo_raw"),
             "win_prob": r.get("pseudo_win_prob"),
-            "ev": r.get("value_index"),
+            "ev": ev,
             "odds": r.get("expected_odds"),
 
             # 新ロジック対応
             "place_label": r.get("place_label"),
             "reason": r.get("reason"),
             "data_confidence": r.get("data_confidence"),
+            "is_best_ev": (best_ev is not None and ev == best_ev),
 
             # front_metrics 展開表示用
             "front5_rate": round(front_metrics.get("front5_rate", 0.0) * 100, 1),
@@ -107,7 +114,11 @@ def build_row_data(results, limit=None):
             "senko_hole_score": r.get("senko_hole_score"),
             "back_penalty": r.get("back_penalty"),
         })
-    return rows
+
+    if limit is not None:
+        return all_rows[:limit]
+
+    return all_rows
 
 
 def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSION):
