@@ -4,535 +4,345 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>前残り展開分析 | 中央競馬 重賞限定</title>
+  <title>前残り展開分析</title>
+
   <style>
-    :root{
-      --bg:#0b1220;
-      --bg2:#121b2f;
-      --card:#16223a;
-      --line:#2c3d63;
-      --text:#eaf1ff;
-      --muted:#a9b7d3;
-      --blue:#5aa9ff;
-      --blue2:#7fc0ff;
-      --accent:#8ad7ff;
-      --shadow:0 12px 28px rgba(0,0,0,.28);
-      --radius:18px;
-      --max:1100px;
-    }
-
-    *{box-sizing:border-box}
-
     body{
       margin:0;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(circle at top right, rgba(90,169,255,.14), transparent 28%),
-        linear-gradient(180deg, #09101d 0%, #0d1526 45%, #0a1020 100%);
-      line-height:1.7;
+      font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background:#0d1526;
+      color:#fff;
+      line-height:1.8;
     }
 
     a{
-      color:inherit;
       text-decoration:none;
+      color:inherit;
     }
 
     .container{
-      width:min(var(--max), calc(100% - 32px));
-      margin:0 auto;
+      max-width:1100px;
+      margin:auto;
+      padding:0 16px;
     }
 
     .nav{
       position:sticky;
       top:0;
-      z-index:20;
-      backdrop-filter:blur(10px);
-      background:rgba(7,12,23,.72);
-      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(0,0,0,0.6);
+      backdrop-filter:blur(8px);
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      z-index:10;
     }
 
     .navInner{
-      width:min(var(--max), calc(100% - 32px));
-      margin:0 auto;
       display:flex;
       justify-content:space-between;
       align-items:center;
       padding:14px 0;
       gap:16px;
+      flex-wrap:wrap;
     }
 
     .brand{
-      font-weight:800;
-      letter-spacing:.02em;
-      font-size:1.05rem;
-      white-space:nowrap;
+      font-weight:bold;
+      font-size:18px;
     }
 
     .navLinks{
       display:flex;
-      gap:18px;
+      gap:16px;
       flex-wrap:wrap;
-      color:var(--muted);
-      font-size:.95rem;
-      justify-content:flex-end;
+    }
+
+    .navLinks a{
+      font-size:14px;
+      color:#ccc;
     }
 
     .navLinks a:hover{
-      color:var(--text);
+      color:#fff;
     }
 
     .hero{
+      padding:80px 0;
+      background:url("{% static 'keibaapp_1/img/top_back.png' %}") center/cover no-repeat;
       position:relative;
-      padding:90px 0 60px;
-      background-image:url("{% static 'keibaapp_1/img/top_back.png' %}");
-      background-size:cover;
-      background-position:center;
-      background-repeat:no-repeat;
-      overflow:hidden;
     }
 
     .hero::before{
       content:"";
       position:absolute;
       inset:0;
-      background:
-        linear-gradient(
-          180deg,
-          rgba(5,10,20,0.72) 0%,
-          rgba(5,10,20,0.84) 60%,
-          rgba(5,10,20,0.92) 100%
-        );
-      z-index:0;
+      background:rgba(0,0,0,0.7);
     }
 
-    .hero > *{
+    .heroContent{
       position:relative;
       z-index:1;
     }
 
-    .heroGrid{
-      display:grid;
-      grid-template-columns:1.2fr .8fr;
-      gap:22px;
-      align-items:stretch;
-    }
-
-    .heroMain,
-    .heroSide,
-    .card,
-    .card2{
-      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
-      border:1px solid rgba(255,255,255,.07);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-    }
-
-    .heroMain{
-      padding:34px;
-    }
-
-    .heroSide{
-      padding:24px;
-    }
-
-    .tagRow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom:18px;
-    }
-
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:8px 12px;
-      border-radius:999px;
-      background:rgba(90,169,255,.10);
-      border:1px solid rgba(127,192,255,.22);
-      color:var(--blue2);
-      font-size:.88rem;
-      font-weight:700;
-    }
-
     h1{
-      margin:0 0 16px;
-      font-size:clamp(2rem, 5vw, 3.3rem);
-      line-height:1.15;
-      letter-spacing:-.02em;
-    }
-
-    .lead{
-      margin:0;
-      color:var(--muted);
-      font-size:1.05rem;
-      max-width:760px;
-    }
-
-    .ctaRow{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-top:26px;
-    }
-
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:13px 18px;
-      border-radius:12px;
-      font-weight:800;
-      transition:.2s ease;
-      border:1px solid transparent;
-    }
-
-    .btn:hover{
-      transform:translateY(-1px);
-    }
-
-    .btnPrimary{
-      background:linear-gradient(135deg, var(--blue), var(--accent));
-      color:#08111f;
-    }
-
-    .btnGhost{
-      border-color:rgba(255,255,255,.12);
-      background:rgba(255,255,255,.03);
-      color:var(--text);
-    }
-
-    .heroStatTitle{
-      margin:0 0 6px;
-      color:var(--muted);
-      font-size:.9rem;
-    }
-
-    .heroStatValue{
-      font-size:1.8rem;
-      font-weight:800;
-      margin-bottom:16px;
+      font-size:40px;
+      margin-bottom:20px;
       line-height:1.35;
     }
 
-    .miniList{
-      display:grid;
-      gap:10px;
-      margin-top:14px;
+    h2{
+      margin-top:0;
+      margin-bottom:14px;
     }
 
-    .miniItem{
-      padding:12px 14px;
-      border-radius:12px;
-      background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.06);
+    .lead{
+      color:#ccc;
+      margin-bottom:30px;
+    }
+
+    .btn{
+      display:inline-block;
+      padding:14px 20px;
+      border-radius:8px;
+      font-weight:bold;
+      transition:0.2s;
+    }
+
+    .btn:hover{
+      opacity:0.92;
+    }
+
+    .btnMain{
+      background:#5aa9ff;
+      color:#000;
+    }
+
+    .btnSub{
+      border:1px solid #aaa;
+      margin-left:10px;
+      color:#fff;
     }
 
     .section{
-      padding:18px 0 12px;
-    }
-
-    .sectionTitle{
-      font-size:1.55rem;
-      margin:0 0 14px;
-      letter-spacing:-.01em;
-    }
-
-    .sectionLead{
-      margin:0 0 20px;
-      color:var(--muted);
-    }
-
-    .grid3{
-      display:grid;
-      grid-template-columns:repeat(3, 1fr);
-      gap:18px;
+      padding:60px 0;
     }
 
     .card{
-      padding:22px;
+      background:#16223a;
+      padding:20px;
+      border-radius:12px;
+      margin-bottom:20px;
     }
 
-    .card h3{
-      margin:0 0 10px;
-      font-size:1.08rem;
-    }
-
-    .card p{
-      margin:0;
-      color:var(--muted);
-      font-size:.97rem;
-    }
-
-    .card2{
-      padding:22px;
-    }
-
-    .freeRaceHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:14px;
-      flex-wrap:wrap;
-      margin-bottom:6px;
-    }
-
-    .freeRaceMeta{
-      color:var(--muted);
-      margin:8px 0 0;
-    }
-
-    .list{
+    .grid{
       display:grid;
-      gap:12px;
-      margin-top:10px;
-    }
-
-    .listItem{
-      padding:14px 16px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.025);
-    }
-
-    .listItem b{
-      display:block;
-      margin-bottom:4px;
+      grid-template-columns:repeat(3,1fr);
+      gap:16px;
     }
 
     .muted{
-      color:var(--muted);
+      color:#aaa;
+      font-size:14px;
     }
 
-    .notice{
-      margin-top:18px;
-      padding:14px 16px;
-      border-radius:14px;
-      background:rgba(138,215,255,.08);
-      border:1px solid rgba(138,215,255,.16);
-      color:#d9efff;
-      font-size:.95rem;
+    .chartWrap{
+      position:relative;
+      width:100%;
+      min-height:280px;
     }
 
-    .footer{
-      padding:40px 0 56px;
-      color:var(--muted);
-      font-size:.92rem;
+    .chartEmpty{
+      padding:24px 0 4px;
+      color:#aaa;
+      font-size:14px;
     }
 
-    @media (max-width: 920px){
-      .heroGrid,
-      .grid3{
+    footer{
+      padding:40px 0;
+      text-align:center;
+      color:#aaa;
+      font-size:13px;
+    }
+
+    @media(max-width:900px){
+      .grid{
         grid-template-columns:1fr;
       }
 
-      .hero{
-        padding-top:44px;
+      h1{
+        font-size:28px;
       }
 
-      .navInner{
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .brand{
-        white-space:normal;
+      .btnSub{
+        margin-left:0;
+        margin-top:10px;
       }
     }
   </style>
 </head>
+
 <body>
-  <header class="nav">
-    <div class="navInner">
-      <div class="brand">前残り展開分析 | 中央競馬 重賞限定</div>
-      <nav class="navLinks">
-        <a href="/top/">TOP</a>
-        <a href="/race/">無料分析</a>
-        <a href="/races/">重賞一覧</a>
-        <a href="/about/">ロジック概要</a>
-      </nav>
-    </div>
-  </header>
 
-  <main>
-    <section class="hero">
-      <div class="container heroGrid">
-        <div class="heroMain">
-          <div class="tagRow">
-            <span class="tag">中央競馬</span>
-            <span class="tag">重賞限定</span>
-            <span class="tag">先行ロジック × 競馬</span>
-          </div>
+<header class="nav">
+  <div class="container navInner">
+    <div class="brand">前残り展開分析</div>
+    <nav class="navLinks">
+      <a href="/">TOP</a>
+      <a href="/race/">今週の勝負レース</a>
+      <a href="/races/">過去レース</a>
+      <a href="/about/">ロジック</a>
+    </nav>
+  </div>
+</header>
 
-          <h1>勝ち馬を当てるより、<br>前で運んで残る馬を拾う。</h1>
+<main>
 
-          <p class="lead">
-            前残り展開分析は、<b>4角で1番手〜5番手に収まる再現性</b>を重視し、
-            <b>3着内に残る余地がある馬</b>を見つけるための重賞分析サイトです。<br>
-            勝ち切る強さではなく、<b>ワイド・3連複で相手に使いやすい馬</b>を探すために、
-            前で運べる先行力と人気とのズレを整理しています。
-          </p>
+<section class="hero">
+  <div class="container heroContent">
 
-          <div class="ctaRow">
-            <a class="btn btnPrimary" href="/race/">▶ 今週の無料分析を見る</a>
-            <a class="btn btnGhost" href="/about/">▶ ロジックを見る</a>
-          </div>
+    <h1>
+      全てのレースは買わない。<br>
+      勝てる1レースだけ勝負する。
+    </h1>
 
-          <div class="notice">
-            現在は <b>今週の重賞1レースのみ無料公開</b>。<br>
-            まずは実際の分析画面で、前残り期待順・ワイド相手候補・先行穴候補の見え方を確認できます。
-          </div>
-        </div>
+    <p class="lead">
+      このサイトでは、毎週「最も期待値がある」と判断したレースを公開しています。<br>
+      前で運べる馬に注目し、3着内に残る余地がある馬を整理します。
+    </p>
 
-        <aside class="heroSide">
-          <div class="heroStatTitle">このサイトで見られるもの</div>
-          <div class="heroStatValue">前残りしやすい馬を、理由つきで整理</div>
+    <a class="btn btnMain" href="/race/">▶ 今週の勝負レースを見る</a>
+    <a class="btn btnSub" href="/about/">ロジックを見る</a>
 
-          <div class="miniList">
-            <div class="miniItem">
-              <b>4角先行力</b>
-              <div class="muted">前で運べる再現性を数値で確認</div>
-            </div>
-            <div class="miniItem">
-              <b>前残り期待度</b>
-              <div class="muted">3着内に残る余地を相対比較</div>
-            </div>
-            <div class="miniItem">
-              <b>先行穴候補</b>
-              <div class="muted">人気のわりに前で残る余地がある馬を整理</div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </section>
+  </div>
+</section>
 
-    <section class="section">
-      <div class="container">
-        <div class="card2">
-          <div class="freeRaceHead">
-            <div>
-              <div class="sectionTitle" style="margin:0;">今週の無料公開レース</div>
-              <p class="sectionLead" style="margin:6px 0 0;">
-                まずは1レース分の無料分析で、画面の見やすさとロジックの考え方を確認できます。
-              </p>
-            </div>
-          </div>
+<section class="section">
+  <div class="container">
 
-          {% if race %}
-            <div class="listItem" style="margin-top:10px;">
-              <b>{{ race.name }}（{{ race.grade }}）</b>
-              <div class="freeRaceMeta">
-                {{ race.race_date }} / {{ race.course }}
-              </div>
-              <div class="ctaRow" style="margin-top:14px;">
-                <a class="btn btnPrimary" href="/race/?race_id={{ race.id }}">▶ このレースの無料分析を見る</a>
-                <a class="btn btnGhost" href="/races/">▶ 他の重賞を見る</a>
-              </div>
-            </div>
-          {% else %}
-            <p class="muted" style="margin:12px 0 0;">現在公開中のレースはありません。</p>
-          {% endif %}
-        </div>
-      </div>
-    </section>
+    <h2>このサイトの考え方</h2>
 
-    <section class="section">
-      <div class="container">
-        <h2 class="sectionTitle">このサイトで見ていること</h2>
-        <p class="sectionLead">
-          中央競馬の重賞に絞り、前で運べる馬が3着内に残る余地を整理するための判断材料を表示します。
+    <div class="grid">
+
+      <div class="card">
+        <h3>① レースを厳選する</h3>
+        <p class="muted">
+          すべてのレースを買うのではなく、
+          最も期待値があると判断したレースだけを対象にします。
         </p>
-
-        <div class="grid3">
-          <div class="card">
-            <h3>① 4角位置から前で運べる再現性を見る</h3>
-            <p>
-              過去走の4角位置をもとに、今回も前につけられそうかを整理します。
-              特に1番手〜5番手に収まる率を重視しています。
-            </p>
-          </div>
-
-          <div class="card">
-            <h3>② 前残りしやすい馬を上位化する</h3>
-            <p>
-              ペース想定や脚質を加味しつつ、
-              勝ち切る強さではなく「前で粘って3着内に残る余地」がある馬を上位に並べます。
-            </p>
-          </div>
-
-          <div class="card">
-            <h3>③ 人気とのズレから妙味を探す</h3>
-            <p>
-              先行力があるのに人気になりきっていない馬を見つけやすくし、
-              ワイドや3連複の相手候補を探しやすくしています。
-            </p>
-          </div>
-        </div>
       </div>
-    </section>
 
-    <section class="section">
-      <div class="container">
-        <div class="card2">
-          <h2 class="sectionTitle">このサービスの考え方</h2>
-          <div class="list">
-            <div class="listItem">
-              <b>重賞だけに絞る</b>
-              <div class="muted">
-                対象を広げすぎず、注目度の高いレースに分析を集中させます。
-              </div>
-            </div>
-            <div class="listItem">
-              <b>前に行ける馬を重視する</b>
-              <div class="muted">
-                競馬は前で運べる馬が有利になりやすく、
-                特に4角で1番手〜5番手に収まれる馬は3着内に残る余地が高いと考えています。
-              </div>
-            </div>
-            <div class="listItem">
-              <b>勝ち馬予想ではなく、相手候補探し</b>
-              <div class="muted">
-                このサイトは1着を当てるためのランキングではなく、
-                ワイドや3連複で相手に残る可能性がある馬を探すための設計です。
-              </div>
-            </div>
-            <div class="listItem">
-              <b>理由が見える形で整理する</b>
-              <div class="muted">
-                4角位置 → 脚質 → ペース想定 → 前残り期待度 → 妙味
-                という流れで、なぜその馬が上位なのかを追いやすくしています。
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="card">
+        <h3>② 前で運べる馬を重視</h3>
+        <p class="muted">
+          4角で前につけられる馬は、
+          人気薄でも馬券に残る可能性があります。
+        </p>
       </div>
-    </section>
 
-    <section class="section">
-      <div class="container">
-        <div class="card2">
-          <h2 class="sectionTitle">まず見るべきページ</h2>
-          <div class="ctaRow" style="margin-top:0;">
-            <a class="btn btnPrimary" href="/race/">▶ 無料分析ページ</a>
-            <a class="btn btnGhost" href="/races/">▶ 重賞一覧ページ</a>
-            <a class="btn btnGhost" href="/about/">▶ ロジック概要ページ</a>
-          </div>
-        </div>
+      <div class="card">
+        <h3>③ 相手候補を見つける</h3>
+        <p class="muted">
+          勝ち馬ではなく、
+          ワイドや3連複で使える馬を見つけます。
+        </p>
       </div>
-    </section>
-  </main>
 
-  <footer class="footer">
-    <div class="container">
-      中央競馬重賞限定の前残り展開分析サイト。<br>
-      4角位置・脚質・ペース想定をもとに、前で運べる馬と人気とのズレを整理します。
-
-      <p style="margin-top:14px; font-size:0.85rem; opacity:0.7; line-height:1.6;">
-        本サイトは情報提供を目的としたものであり、特定の馬券購入を推奨するものではありません。<br>
-        最終判断はご自身の責任でお願いいたします。
-      </p>
     </div>
-  </footer>
+
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+
+    <h2>累計回収率</h2>
+
+    <p class="muted">
+      これまでに公開した勝負レースの累計回収率です
+    </p>
+
+    <div class="card" style="margin-top:20px;">
+
+      {% if chart_labels and chart_roi %}
+        <div class="chartWrap">
+          <canvas id="roiChart"></canvas>
+        </div>
+      {% else %}
+        <div class="chartEmpty">
+          まだ回収率グラフに表示できるデータがありません。
+        </div>
+      {% endif %}
+
+      <div style="margin-top:20px;">
+        <b>累計回収率：</b>
+        <span style="font-size:20px; font-weight:bold; {% if total_roi >= 100 %}color:#4caf50;{% else %}color:#f44336;{% endif %}">
+          {{ total_roi|default:0 }}%
+        </span>
+      </div>
+
+      <div class="muted" style="margin-top:6px;">
+        対象レース数：{{ race_count|default:0 }}
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<footer>
+  前残り展開分析<br>
+  本サイトは情報提供を目的としており、馬券購入を推奨するものではありません。
+</footer>
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_roi|json_script:"chart-roi" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const chartCanvas = document.getElementById('roiChart');
+
+  if (chartCanvas) {
+    const labels = JSON.parse(document.getElementById('chart-labels').textContent);
+    const roiData = JSON.parse(document.getElementById('chart-roi').textContent);
+
+    new Chart(chartCanvas, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '累計回収率',
+          data: roiData,
+          tension: 0.3,
+          borderColor: '#5aa9ff',
+          backgroundColor: 'rgba(90,169,255,0.18)',
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: '#fff'
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#ccc' },
+            grid: { color: 'rgba(255,255,255,0.08)' }
+          },
+          y: {
+            ticks: { color: '#ccc' },
+            grid: { color: 'rgba(255,255,255,0.08)' }
+          }
+        }
+      }
+    });
+  }
+</script>
+
 </body>
 </html>

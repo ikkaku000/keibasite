@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Prefetch
+from datetime import date
 
 from .models import (
     Race,
@@ -152,9 +153,62 @@ def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSIO
 
 
 def top_page(request):
+    from datetime import date
+
     race = get_current_race()
+    cutoff_date = date(2026, 4, 5)  # ← 大阪杯
+
+    snapshots = (
+        EntryAnalysisSnapshot.objects
+        .select_related("race_snapshot", "race_snapshot__race")
+        .prefetch_related("result_snapshot")
+        .filter(race_snapshot__race__race_date__gte=cutoff_date)
+        .order_by("race_snapshot__race__race_date")
+    )
+
+    race_map = {}
+
+    for row in snapshots:
+        rs = row.race_snapshot
+        rid = rs.id
+
+        if rid not in race_map:
+            race_map[rid] = []
+
+        race_map[rid].append(row)
+
+    labels = []
+    roi_values = []
+
+    total_bet = 0
+    total_return = 0
+
+    for rid, rows in race_map.items():
+        rows_sorted = sorted(rows, key=lambda x: x.rank_by_prob or 999)
+
+        if not rows_sorted:
+            continue
+
+        honmei = rows_sorted[0]
+        result = getattr(honmei, "result_snapshot", None)
+
+        bet = 100
+        ret = result.place_payoff if result and result.place_payoff else 0
+
+        total_bet += bet
+        total_return += ret
+
+        roi = int((total_return / total_bet) * 100) if total_bet else 0
+
+        labels.append(honmei.race_snapshot.race.name)
+        roi_values.append(roi)
+
     return render(request, "keibaapp_1/top.html", {
         "race": race,
+        "chart_labels": labels,
+        "chart_roi": roi_values,
+        "total_roi": int((total_return / total_bet) * 100) if total_bet else 0,
+        "race_count": len(labels),
     })
 
 
@@ -163,15 +217,51 @@ def about_page(request):
 
 
 def races_page(request):
-    today = now().date()
+    cutoff_date = date(2026, 4, 5)  # ← 大阪杯の日に変更
 
-    upcoming = Race.objects.filter(race_date__gte=today).order_by("race_date")[:20]
-    recent = Race.objects.filter(race_date__lt=today).order_by("-race_date")[:20]
+    races = (
+        Race.objects
+        .filter(race_date__gte=cutoff_date)
+        .order_by("-race_date")
+    )
+
+    data = []
+
+    for race in races:
+        snapshot = (
+            RaceAnalysisSnapshot.objects
+            .filter(race=race)
+            .order_by("-calculated_at")
+            .first()
+        )
+
+        if not snapshot:
+            continue
+
+        honmei = (
+            EntryAnalysisSnapshot.objects
+            .filter(race_snapshot=snapshot, rank_by_prob=1)
+            .first()
+        )
+
+        result = getattr(honmei, "result_snapshot", None) if honmei else None
+
+        bet = 100
+        payoff = result.place_payoff if result and result.place_payoff else 0
+        roi = int((payoff / bet) * 100) if payoff else 0
+
+        data.append({
+            "id": race.id,
+            "name": race.name,
+            "race_date": race.race_date,
+            "honmei": honmei.horse_name if honmei else "-",
+            "rank": result.rank if result else None,
+            "place_payoff": payoff,
+            "roi": roi,
+        })
 
     return render(request, "keibaapp_1/races.html", {
-        "upcoming": upcoming,
-        "recent": recent,
-        "today": today,
+        "races": data
     })
 
 

@@ -1,74 +1,78 @@
 {% extends "keibaapp_1/base.html" %}
 
-{% block title %}重賞一覧{% endblock %}
+{% block title %}過去の勝負レース{% endblock %}
 
 {% block content %}
-<section style="max-width: 980px; margin: 0 auto;">
 
-  <h1>重賞一覧</h1>
-  <p style="color:#666;">
-    見たいレースを選ぶと、そのレースの「全頭ランキング」「AI本命3頭」を表示します。
-  </p>
+<h1 style="margin-bottom:10px;">過去の勝負レース履歴</h1>
 
-  <hr style="margin: 18px 0;">
+<p style="color:#666; margin-bottom:20px;">
+このページでは、これまでに公開した勝負レースと結果をまとめています。<br>
+レース単位での回収率と、選定の精度を確認できます。
+</p>
 
-  <h2>これからの重賞（直近）</h2>
+{% if races %}
 
-  {% if upcoming %}
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
-      {% for r in upcoming %}
-        <div style="border:1px solid #e6e6e6; border-radius:14px; padding:14px; background:#fff;">
-          <div style="font-size:13px; color:#666;">{{ r.race_date }}</div>
-          <div style="font-weight:800; font-size:18px; margin:6px 0 4px;">{{ r.name }}</div>
-          <div style="color:#444; font-size:13px;">
-            {{ r.grade }} / {{ r.course }}
-            {% if r.track_condition %} / {{ r.track_condition }}{% endif %}
-          </div>
+<div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;min-width:900px;">
+    <thead>
+      <tr style="background:#f5f5f5;">
+        <th style="padding:10px;">日付</th>
+        <th style="padding:10px;text-align:left;">レース名</th>
+        <th style="padding:10px;">本命馬</th>
+        <th style="padding:10px;">着順</th>
+        <th style="padding:10px;">複勝</th>
+        <th style="padding:10px;">回収率</th>
+        <th style="padding:10px;">リンク</th>
+      </tr>
+    </thead>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
-            <a href="/race/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #111; text-decoration:none; font-weight:700;">
-              ▶ 全頭ランキング
-            </a>
-            <a href="/top/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #999; text-decoration:none;">
-              ▶ AI本命3頭
-            </a>
-          </div>
-        </div>
+    <tbody>
+      {% for r in races %}
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:10px;text-align:center;">
+          {{ r.race_date }}
+        </td>
+
+        <td style="padding:10px;">
+          {{ r.name }}
+        </td>
+
+        <td style="padding:10px;text-align:center;">
+          {{ r.honmei }}
+        </td>
+
+        <td style="padding:10px;text-align:center;">
+          {{ r.rank|default:"-" }}
+        </td>
+
+        <td style="padding:10px;text-align:center;">
+          {{ r.place_payoff|default:"-" }}
+        </td>
+
+        <td style="padding:10px;text-align:center;">
+          <b style="
+            {% if r.roi >= 150 %}
+              color:#e53935;
+            {% elif r.roi >= 100 %}
+              color:#ff9800;
+            {% endif %}
+          ">
+            {{ r.roi|default:"-" }}%
+          </b>
+        </td>
+
+        <td style="padding:10px;text-align:center;">
+          <a href="/race/?race_id={{ r.id }}">見る</a>
+        </td>
+      </tr>
       {% endfor %}
-    </div>
-  {% else %}
-    <p style="color:#888;">これからの重賞がまだ登録されていません（/admin/ から Race を追加してください）。</p>
-  {% endif %}
+    </tbody>
+  </table>
+</div>
 
-  <hr style="margin: 24px 0;">
+{% else %}
+<p>まだ履歴はありません。</p>
+{% endif %}
 
-  <h2>最近の重賞（過去）</h2>
-
-  {% if recent %}
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
-      {% for r in recent %}
-        <div style="border:1px solid #e6e6e6; border-radius:14px; padding:14px; background:#fafafa;">
-          <div style="font-size:13px; color:#666;">{{ r.race_date }}</div>
-          <div style="font-weight:800; font-size:18px; margin:6px 0 4px;">{{ r.name }}</div>
-          <div style="color:#444; font-size:13px;">
-            {{ r.grade }} / {{ r.course }}
-            {% if r.track_condition %} / {{ r.track_condition }}{% endif %}
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
-            <a href="/race/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #111; text-decoration:none; font-weight:700;">
-              ▶ 全頭ランキング
-            </a>
-            <a href="/top/?race_id={{ r.id }}" style="padding:10px 12px; border-radius:10px; border:1px solid #999; text-decoration:none;">
-              ▶ AI本命3頭
-            </a>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p style="color:#888;">過去レースがありません。</p>
-  {% endif %}
-
-</section>
 {% endblock %}
