@@ -25,12 +25,10 @@ MODEL_VERSION = "v3_front_keep_place"
 def get_current_race():
     today = now().date()
 
-    # 未来のレースで一番近いもの
     upcoming = Race.objects.filter(race_date__gte=today).order_by("race_date").first()
     if upcoming:
         return upcoming
 
-    # なければ直近の過去レース
     return Race.objects.filter(race_date__lt=today).order_by("-race_date").first()
 
 
@@ -63,7 +61,6 @@ def build_row_data(results, limit=None):
     """
     analysis["results"] をテンプレート表示用の rows に変換
     """
-    # 先に全件から妙味指数トップを判定
     valid_evs = [
         r.get("value_index")
         for r in results
@@ -91,13 +88,11 @@ def build_row_data(results, limit=None):
             "ev": ev,
             "odds": r.get("expected_odds"),
 
-            # 新ロジック対応
             "place_label": r.get("place_label"),
             "reason": r.get("reason"),
             "data_confidence": r.get("data_confidence"),
             "is_best_ev": (best_ev is not None and ev == best_ev),
 
-            # front_metrics 展開表示用
             "front5_rate": round(front_metrics.get("front5_rate", 0.0) * 100, 1),
             "front3_rate": round(front_metrics.get("front3_rate", 0.0) * 100, 1),
             "nige_rate": round(front_metrics.get("nige_rate", 0.0) * 100, 1),
@@ -106,7 +101,6 @@ def build_row_data(results, limit=None):
             "consistency": round(front_metrics.get("consistency", 0.0) * 100, 1),
             "valid_count": front_metrics.get("valid_count", 0),
 
-            # デバッグ / 詳細表示用
             "front_keep_score": r.get("front_keep_score"),
             "style_score": r.get("style_score"),
             "pace_resilience_score": r.get("pace_resilience_score"),
@@ -120,6 +114,37 @@ def build_row_data(results, limit=None):
         return all_rows[:limit]
 
     return all_rows
+
+
+def build_featured_rows(rows):
+    """
+    上部カード用
+    - 1位の前残り本命候補
+    - 前残り期待値1位
+    同じ馬なら1頭だけ返す
+    """
+    if not rows:
+        return []
+
+    featured = []
+
+    # 順位1位
+    top_row = rows[0]
+    featured.append({
+        **top_row,
+        "featured_title": "前残り本命候補",
+    })
+
+    # 前残り期待値1位
+    best_ev_row = next((r for r in rows if r.get("is_best_ev")), None)
+
+    if best_ev_row and best_ev_row["horse_name"] != top_row["horse_name"]:
+        featured.append({
+            **best_ev_row,
+            "featured_title": "前残り期待値1位",
+        })
+
+    return featured
 
 
 def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSION):
@@ -152,55 +177,77 @@ def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSIO
     return snapshot, True, "created"
 
 
+def get_wide_payoff_from_result_snapshot(result_snapshot, pair_key=None):
+    """
+    ワイド払戻取得用
+    未実装なら 0 を返す
+    """
+    if not result_snapshot:
+        return 0
+
+    return 0
+
+
 def top_page(request):
-    from datetime import date
-
     race = get_current_race()
-    cutoff_date = date(2026, 4, 5)  # ← 大阪杯
+    cutoff_date = date(2026, 4, 5)  # 大阪杯から表示
 
-    snapshots = (
-        EntryAnalysisSnapshot.objects
-        .select_related("race_snapshot", "race_snapshot__race")
-        .prefetch_related("result_snapshot")
-        .filter(race_snapshot__race__race_date__gte=cutoff_date)
-        .order_by("race_snapshot__race__race_date")
+    race_snapshots = (
+        RaceAnalysisSnapshot.objects
+        .select_related("race")
+        .filter(race__race_date__gte=cutoff_date)
+        .order_by("race_id", "-calculated_at")
     )
 
-    race_map = {}
-
-    for row in snapshots:
-        rs = row.race_snapshot
-        rid = rs.id
-
-        if rid not in race_map:
-            race_map[rid] = []
-
-        race_map[rid].append(row)
+    latest_snapshots = {}
+    for snapshot in race_snapshots:
+        race_id = snapshot.race.id
+        if race_id not in latest_snapshots:
+            latest_snapshots[race_id] = snapshot
 
     labels = []
     roi_values = []
-
     total_bet = 0
     total_return = 0
 
-    for rid, rows in race_map.items():
-        rows_sorted = sorted(rows, key=lambda x: x.rank_by_prob or 999)
+    ordered_snapshots = sorted(
+        latest_snapshots.values(),
+        key=lambda s: (s.race.race_date, s.race.id)
+    )
 
-        if not rows_sorted:
+    for snapshot in ordered_snapshots:
+        rows = list(
+            EntryAnalysisSnapshot.objects
+            .filter(race_snapshot=snapshot)
+            .select_related("result_snapshot")
+            .order_by("rank_by_value")
+        )
+
+        if len(rows) < 3:
             continue
 
-        honmei = rows_sorted[0]
-        result = getattr(honmei, "result_snapshot", None)
+        value1 = rows[0]
+        value2 = rows[1]
+        value3 = rows[2]
 
-        bet = 100
-        ret = result.place_payoff if result and result.place_payoff else 0
+        bet = 2000  # 1000円 × 2点
+        ret = 0
+
+        ret += get_wide_payoff_from_result_snapshot(
+            getattr(value1, "result_snapshot", None),
+            pair_key=("value1", "value2"),
+        )
+        ret += get_wide_payoff_from_result_snapshot(
+            getattr(value1, "result_snapshot", None),
+            pair_key=("value1", "value3"),
+        )
 
         total_bet += bet
         total_return += ret
 
         roi = int((total_return / total_bet) * 100) if total_bet else 0
 
-        labels.append(honmei.race_snapshot.race.name)
+        labels.append(snapshot.race.name)
         roi_values.append(roi)
 
     return render(request, "keibaapp_1/top.html", {
@@ -217,7 +264,11 @@ def about_page(request):
 
 
 def races_page(request):
-    cutoff_date = date(2026, 4, 5)  # ← 大阪杯の日に変更
+    """
+    過去の勝負レース履歴
+    対象馬は「前残り期待値1位（rank_by_value=1）」を表示
+    """
+    cutoff_date = date(2026, 4, 5)
 
     races = (
         Race.objects
@@ -238,13 +289,14 @@ def races_page(request):
         if not snapshot:
             continue
 
-        honmei = (
+        value1 = (
             EntryAnalysisSnapshot.objects
-            .filter(race_snapshot=snapshot, rank_by_prob=1)
+            .filter(race_snapshot=snapshot, rank_by_value=1)
+            .select_related("result_snapshot")
             .first()
         )
 
-        result = getattr(honmei, "result_snapshot", None) if honmei else None
+        result = getattr(value1, "result_snapshot", None) if value1 else None
 
         bet = 100
         payoff = result.place_payoff if result and result.place_payoff else 0
@@ -254,7 +306,7 @@ def races_page(request):
             "id": race.id,
             "name": race.name,
             "race_date": race.race_date,
-            "honmei": honmei.horse_name if honmei else "-",
+            "honmei": value1.horse_name if value1 else "-",
             "rank": result.rank if result else None,
             "place_payoff": payoff,
             "roi": roi,
@@ -284,9 +336,13 @@ def race_db(request):
         model_version=MODEL_VERSION,
     )
 
+    row_data = build_row_data(analysis["results"])
+    featured_rows = build_featured_rows(row_data)
+
     context = {
         "race": build_race_context(race, analysis),
-        "rows": build_row_data(analysis["results"]),
+        "rows": row_data,
+        "featured_rows": featured_rows,
         "analysis": analysis,
         "debug": settings.DEBUG,
         "snapshot_id": snapshot.id if snapshot else None,
@@ -309,9 +365,11 @@ def top3_db(request):
     entries = list(race.entries.all())
     analysis = analyze_entries(entries)
 
+    row_data = build_row_data(analysis["results"], limit=3)
+
     context = {
         "race": build_race_context(race, analysis),
-        "rows": build_row_data(analysis["results"], limit=3),
+        "rows": row_data,
         "analysis": analysis,
         "debug": settings.DEBUG,
         "model_version": MODEL_VERSION,
@@ -361,7 +419,6 @@ def roi_page(request):
         .order_by("race_snapshot__race__race_date", "race_snapshot__id", "rank_by_prob")
     )
 
-    # レース単位にまとめる
     race_map = {}
     for row in snapshots:
         race_snapshot = row.race_snapshot
@@ -376,7 +433,6 @@ def roi_page(request):
 
     race_blocks = list(race_map.values())
 
-    # 集計用
     prob1_bet = 0
     prob1_return = 0
 
@@ -425,19 +481,16 @@ def roi_page(request):
         race_top3_place_bet = 0
         race_top3_place_return = 0
 
-        # 疑似確率1位 単勝100円
         if prob1 and hasattr(prob1, "result_snapshot"):
             race_prob1_bet += 100
             if prob1.result_snapshot and prob1.result_snapshot.win_payoff:
                 race_prob1_return += prob1.result_snapshot.win_payoff
 
-        # 妙味1位 単勝100円
         if value1 and hasattr(value1, "result_snapshot"):
             race_value1_bet += 100
             if value1.result_snapshot and value1.result_snapshot.win_payoff:
                 race_value1_return += value1.result_snapshot.win_payoff
 
-        # 疑似確率上位3頭 複勝100円ずつ
         valid_top3_count = 0
         for r in top3:
             if hasattr(r, "result_snapshot"):

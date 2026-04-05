@@ -49,60 +49,25 @@
   </p>
 </section>
 
-{% if rows %}
-<section style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;">
-  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:#fff7e8;">
-    <div style="font-size:12px;color:#888;margin-bottom:6px;">前残り本命候補</div>
-    <div style="font-size:22px;font-weight:700;">{{ rows.0.horse_name }}</div>
+{% if featured_rows %}
+<section style="
+  display:grid;
+  grid-template-columns:repeat({% if featured_rows|length == 1 %}1{% else %}2{% endif %},1fr);
+  gap:14px;
+  margin-bottom:24px;
+">
+  {% for f in featured_rows %}
+  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:{% if forloop.first %}#fff7e8{% else %}#fff{% endif %};">
+    <div style="font-size:12px;color:#888;margin-bottom:6px;">{{ f.featured_title }}</div>
+    <div style="font-size:22px;font-weight:700;">{{ f.horse_name }}</div>
     <div style="margin-top:6px;color:#666;">
-      {{ rows.0.style }} / {{ rows.0.place_label }}
+      {{ f.style }} / {{ f.place_label }}
     </div>
     <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
-      {{ rows.0.reason }}
+      {{ f.reason }}
     </div>
   </div>
-
-  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:#fff;">
-    <div style="font-size:12px;color:#888;margin-bottom:6px;">ワイド相手候補</div>
-    <div style="font-size:22px;font-weight:700;">
-      {% if rows|length > 1 %}{{ rows.1.horse_name }}{% else %}-{% endif %}
-    </div>
-    <div style="margin-top:6px;color:#666;">
-      {% if rows|length > 1 %}
-        {{ rows.1.style }} / {{ rows.1.place_label }}
-      {% else %}
-        データなし
-      {% endif %}
-    </div>
-    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
-      {% if rows|length > 1 %}
-        {{ rows.1.reason }}
-      {% else %}
-        -
-      {% endif %}
-    </div>
-  </div>
-
-  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:#fff;">
-    <div style="font-size:12px;color:#888;margin-bottom:6px;">先行穴候補</div>
-    <div style="font-size:22px;font-weight:700;">
-      {% if rows|length > 2 %}{{ rows.2.horse_name }}{% else %}-{% endif %}
-    </div>
-    <div style="margin-top:6px;color:#666;">
-      {% if rows|length > 2 %}
-        {{ rows.2.style }} / {{ rows.2.place_label }}
-      {% else %}
-        データなし
-      {% endif %}
-    </div>
-    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
-      {% if rows|length > 2 %}
-        {{ rows.2.reason }}
-      {% else %}
-        -
-      {% endif %}
-    </div>
-  </div>
+  {% endfor %}
 </section>
 {% endif %}
 
@@ -314,13 +279,13 @@
   </h2>
 
   <p style="color:#666;margin-bottom:25px;line-height:1.8;">
-    現在は <b>今週の重賞1レースのみ無料公開</b>しています。<br>
-    他の重賞分析も見たい場合は、今後メンバー向け公開を予定しています。
+    現在は <b>今週の勝負レースのみ公開</b>しています。<br>
+    継続的に成績も公開していく予定です。
   </p>
 
   <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
 
-    <a href="/top/" style="
+    <a href="/" style="
       padding:12px 20px;
       border-radius:10px;
       background:#111;
@@ -328,7 +293,7 @@
       font-weight:bold;
       text-decoration:none;
     ">
-      上位3頭を見る
+      TOPへ戻る
     </a>
 
     <a href="/about/" style="
@@ -344,14 +309,6 @@
     </a>
 
   </div>
-
-  <p style="margin-top:20px;color:#888;font-size:13px;">
-    ※将来的に「全重賞分析」はメンバー限定で公開予定です
-  </p>
 </section>
-
-<p style="margin-top:16px;">
-  <a href="/top/">上位3頭の要点を見る →</a>
-</p>
 
 {% endblock %}
