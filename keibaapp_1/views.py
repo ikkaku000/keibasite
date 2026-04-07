@@ -1,25 +1,36 @@
-from django.utils.timezone import now
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse
-from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Prefetch
 from datetime import date
 
+from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db import transaction
+from django.db.models import Prefetch
+from django.http import HttpResponse, HttpResponseNotAllowed
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.timezone import now
+
 from .models import (
-    Race,
-    RaceAnalysisSnapshot,
     EntryAnalysisSnapshot,
     EntryResultSnapshot,
+    Race,
+    RaceAnalysisSnapshot,
 )
 from .services import (
-    display_run_style,
     analyze_entries,
+    display_run_style,
     save_analysis_snapshot,
 )
 
 
 MODEL_VERSION = "v3_front_keep_place"
+
+
+def get_featured_race():
+    return (
+        Race.objects
+        .filter(is_featured_this_week=True)
+        .order_by("race_date", "id")
+        .first()
+    )
 
 
 def get_current_race():
@@ -36,6 +47,11 @@ def get_selected_or_current_race(request):
     race_id = request.GET.get("race_id")
     if race_id:
         return get_object_or_404(Race, id=race_id)
+
+    featured = get_featured_race()
+    if featured:
+        return featured
+
     return get_current_race()
 
 
@@ -163,7 +179,7 @@ def get_race_result_amounts(snapshot):
 
 
 def top_page(request):
-    race = get_current_race()
+    race = get_featured_race() or get_current_race()
     cutoff_date = date(2026, 4, 5)
 
     race_snapshots = (
@@ -305,26 +321,6 @@ def race_db(request):
     return render(request, "keibaapp_1/race_mock.html", context)
 
 
-def top3_db(request):
-    race = get_selected_or_current_race(request)
-    if not race:
-        return render(request, "keibaapp_1/race_empty.html")
-
-    entries = list(race.entries.all())
-    analysis = analyze_entries(entries)
-
-    row_data = build_row_data(analysis["results"], limit=3)
-
-    context = {
-        "race": build_race_context(race, analysis),
-        "rows": row_data,
-        "analysis": analysis,
-        "debug": settings.DEBUG,
-        "model_version": MODEL_VERSION,
-    }
-    return render(request, "keibaapp_1/top3_mock.html", context)
-
-
 @staff_member_required
 def save_race_snapshot(request):
     race = get_selected_or_current_race(request)
@@ -336,6 +332,37 @@ def save_race_snapshot(request):
     snapshot = save_analysis_snapshot(race, analysis, model_version=MODEL_VERSION)
 
     return HttpResponse(f"saved snapshot id={snapshot.id}")
+
+
+@staff_member_required
+def race_candidates_page(request):
+    races = (
+        Race.objects
+        .all()
+        .order_by("-race_date", "id")
+    )
+
+    featured_race = get_featured_race()
+
+    return render(request, "keibaapp_1/race_candidates.html", {
+        "races": races,
+        "featured_race": featured_race,
+    })
+
+
+@staff_member_required
+def set_featured_race(request, race_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    selected_race = get_object_or_404(Race, id=race_id)
+
+    with transaction.atomic():
+        Race.objects.filter(is_featured_this_week=True).update(is_featured_this_week=False)
+        selected_race.is_featured_this_week = True
+        selected_race.save(update_fields=["is_featured_this_week"])
+
+    return redirect("race_candidates_page")
 
 
 def roi_page(request):

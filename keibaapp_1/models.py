@@ -13,6 +13,9 @@ class Race(models.Model):
     pace = models.CharField(max_length=1, blank=True, default="")  # S/M/H
     pace_comment = models.CharField(max_length=100, blank=True, default="")
 
+    # 公開用：今週のイチオシレース
+    is_featured_this_week = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

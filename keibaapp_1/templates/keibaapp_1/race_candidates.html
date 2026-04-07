@@ -1,0 +1,279 @@
+{% extends "keibaapp_1/base.html" %}
+
+{% block title %}検証用レース一覧{% endblock %}
+
+{% block content %}
+
+<style>
+  .manage-wrap {
+    max-width: 1100px;
+  }
+
+  .manage-lead {
+    color: #666;
+    line-height: 1.8;
+    margin-bottom: 18px;
+  }
+
+  .featured-box {
+    border: 1px solid #e6e6e6;
+    background: #fff8e8;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 22px;
+  }
+
+  .featured-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+
+  .featured-name {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .featured-meta {
+    margin-top: 6px;
+    color: #555;
+    line-height: 1.7;
+  }
+
+  .race-table-wrap {
+    overflow-x: auto;
+  }
+
+  .race-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+    background: #fff;
+  }
+
+  .race-table thead tr {
+    background: #f5f5f5;
+  }
+
+  .race-table th,
+  .race-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .race-table th {
+    text-align: left;
+  }
+
+  .center {
+    text-align: center;
+  }
+
+  .featured-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #fff0c7;
+    color: #8a5a00;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .normal-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #f1f3f5;
+    color: #555;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn-main,
+  .btn-sub {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .btn-main {
+    background: #111;
+    color: #fff;
+  }
+
+  .btn-sub {
+    background: #fff;
+    color: #222;
+    border: 1px solid #ccc;
+  }
+
+  .mobile-cards {
+    display: none;
+  }
+
+  .race-card {
+    border: 1px solid #e6e6e6;
+    border-radius: 14px;
+    background: #fff;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .race-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .race-card-grid {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 8px 12px;
+    margin-bottom: 14px;
+  }
+
+  .race-card-label {
+    color: #666;
+    font-size: 13px;
+  }
+
+  .race-card-value {
+    color: #222;
+    font-size: 14px;
+    word-break: break-word;
+  }
+
+  @media (max-width: 768px) {
+    .race-table-wrap {
+      display: none;
+    }
+
+    .mobile-cards {
+      display: block;
+    }
+
+    .featured-name {
+      font-size: 20px;
+    }
+  }
+</style>
+
+<div class="manage-wrap">
+  <h1 style="margin-bottom:10px;">検証用レース一覧</h1>
+
+  <p class="manage-lead">
+    このページは運営用です。<br>
+    検証したいレースを確認し、その中から「今週のイチオシレース」を1つだけ選べます。
+  </p>
+
+  {% if featured_race %}
+    <div class="featured-box">
+      <div class="featured-label">現在の今週のイチオシレース</div>
+      <div class="featured-name">{{ featured_race.name }}</div>
+      <div class="featured-meta">
+        {{ featured_race.race_date }} / {{ featured_race.grade }} / {{ featured_race.course }}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="race-table-wrap">
+    <table class="race-table">
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>レース名</th>
+          <th>グレード</th>
+          <th>コース</th>
+          <th class="center">公開状態</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for race in races %}
+        <tr>
+          <td>{{ race.race_date }}</td>
+          <td>{{ race.name }}</td>
+          <td>{{ race.grade }}</td>
+          <td>{{ race.course }}</td>
+          <td class="center">
+            {% if race.is_featured_this_week %}
+              <span class="featured-badge">公開中</span>
+            {% else %}
+              <span class="normal-badge">未公開</span>
+            {% endif %}
+          </td>
+          <td class="center">
+            <div class="action-row">
+              <a href="/race/?race_id={{ race.id }}" class="btn-sub">分析を見る</a>
+
+              {% if not race.is_featured_this_week %}
+              <form method="post" action="{% url 'set_featured_race' race.id %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-main">今週のイチオシにする</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mobile-cards">
+    {% for race in races %}
+    <div class="race-card">
+      <div class="race-card-title">{{ race.name }}</div>
+
+      <div class="race-card-grid">
+        <div class="race-card-label">日付</div>
+        <div class="race-card-value">{{ race.race_date }}</div>
+
+        <div class="race-card-label">グレード</div>
+        <div class="race-card-value">{{ race.grade }}</div>
+
+        <div class="race-card-label">コース</div>
+        <div class="race-card-value">{{ race.course }}</div>
+
+        <div class="race-card-label">公開状態</div>
+        <div class="race-card-value">
+          {% if race.is_featured_this_week %}
+            <span class="featured-badge">公開中</span>
+          {% else %}
+            <span class="normal-badge">未公開</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="action-row">
+        <a href="/race/?race_id={{ race.id }}" class="btn-sub">分析を見る</a>
+
+        {% if not race.is_featured_this_week %}
+        <form method="post" action="{% url 'set_featured_race' race.id %}" style="margin:0; width:100%;">
+          {% csrf_token %}
+          <button type="submit" class="btn-main" style="width:100%;">今週のイチオシにする</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
