@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'keibaapp_1',
+    "keibaapp_1.apps.Keibaapp1Config",
     "import_export",
 ]
 
