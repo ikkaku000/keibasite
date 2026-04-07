@@ -93,6 +93,11 @@
       margin-bottom:14px;
     }
 
+    h3{
+      margin-top:0;
+      margin-bottom:10px;
+    }
+
     .lead{
       color:#ccc;
       margin-bottom:30px;
@@ -138,6 +143,32 @@
       gap:16px;
     }
 
+    .summaryGrid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:16px;
+      margin-top:20px;
+    }
+
+    .summaryCard{
+      background:#101a2d;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:12px;
+      padding:16px;
+    }
+
+    .summaryLabel{
+      color:#aaa;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+
+    .summaryValue{
+      font-size:24px;
+      font-weight:bold;
+      line-height:1.4;
+    }
+
     .muted{
       color:#aaa;
       font-size:14px;
@@ -167,6 +198,10 @@
         grid-template-columns:1fr;
       }
 
+      .summaryGrid{
+        grid-template-columns:1fr 1fr;
+      }
+
       h1{
         font-size:28px;
       }
@@ -174,6 +209,12 @@
       .btnSub{
         margin-left:0;
         margin-top:10px;
+      }
+    }
+
+    @media(max-width:640px){
+      .summaryGrid{
+        grid-template-columns:1fr;
       }
     }
   </style>
@@ -256,7 +297,7 @@
     <h2>累計回収率</h2>
 
     <p class="muted">
-      これまでに公開した勝負レースの累計回収率です
+      管理画面に入力した各レースの投資額・払戻額をもとに、累計回収率と累計収支を表示しています。
     </p>
 
     <div class="card" style="margin-top:20px;">
@@ -271,14 +312,43 @@
         </div>
       {% endif %}
 
-      <div style="margin-top:20px;">
-        <b>累計回収率：</b>
-        <span style="font-size:20px; font-weight:bold; {% if total_roi >= 100 %}color:#4caf50;{% else %}color:#f44336;{% endif %}">
-          {{ total_roi|default:0 }}%
-        </span>
+      <div class="summaryGrid">
+        <div class="summaryCard">
+          <div class="summaryLabel">累計回収率</div>
+          <div class="summaryValue" style="{% if total_roi >= 100 %}color:#4caf50;{% else %}color:#f44336;{% endif %}">
+            {{ total_roi|default:0 }}%
+          </div>
+        </div>
+
+        <div class="summaryCard">
+          <div class="summaryLabel">累計収支</div>
+          <div class="summaryValue" style="
+            {% if total_profit > 0 %}
+              color:#4caf50;
+            {% elif total_profit < 0 %}
+              color:#f44336;
+            {% endif %}
+          ">
+            {% if total_profit > 0 %}+{% endif %}{{ total_profit|default:0 }}円
+          </div>
+        </div>
+
+        <div class="summaryCard">
+          <div class="summaryLabel">累計投資額</div>
+          <div class="summaryValue">
+            {{ total_bet|default:0 }}円
+          </div>
+        </div>
+
+        <div class="summaryCard">
+          <div class="summaryLabel">累計払戻額</div>
+          <div class="summaryValue">
+            {{ total_return|default:0 }}円
+          </div>
+        </div>
       </div>
 
-      <div class="muted" style="margin-top:6px;">
+      <div class="muted" style="margin-top:12px;">
         対象レース数：{{ race_count|default:0 }}
       </div>
 

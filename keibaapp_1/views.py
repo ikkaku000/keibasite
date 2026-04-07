@@ -40,9 +40,6 @@ def get_selected_or_current_race(request):
 
 
 def build_race_context(race, analysis):
-    """
-    テンプレートへ渡す race 情報を統一
-    """
     return {
         "id": race.id,
         "name": race.name,
@@ -58,9 +55,6 @@ def build_race_context(race, analysis):
 
 
 def build_row_data(results, limit=None):
-    """
-    analysis["results"] をテンプレート表示用の rows に変換
-    """
     valid_evs = [
         r.get("value_index")
         for r in results
@@ -78,21 +72,17 @@ def build_row_data(results, limit=None):
             "horse_name": r["horse_name"],
             "style": display_run_style(r["run_style"]),
             "run_style_code": r["run_style"],
-
             "corner4_index": r.get("corner4_index"),
             "agari_avg_rank": r.get("agari_avg_rank"),
-
             "tempo": r["tempo"],
             "tempo_raw": r.get("tempo_raw"),
             "win_prob": r.get("pseudo_win_prob"),
             "ev": ev,
             "odds": r.get("expected_odds"),
-
             "place_label": r.get("place_label"),
             "reason": r.get("reason"),
             "data_confidence": r.get("data_confidence"),
             "is_best_ev": (best_ev is not None and ev == best_ev),
-
             "front5_rate": round(front_metrics.get("front5_rate", 0.0) * 100, 1),
             "front3_rate": round(front_metrics.get("front3_rate", 0.0) * 100, 1),
             "nige_rate": round(front_metrics.get("nige_rate", 0.0) * 100, 1),
@@ -100,7 +90,6 @@ def build_row_data(results, limit=None):
             "std_corner4_pos": front_metrics.get("std_corner4_pos"),
             "consistency": round(front_metrics.get("consistency", 0.0) * 100, 1),
             "valid_count": front_metrics.get("valid_count", 0),
-
             "front_keep_score": r.get("front_keep_score"),
             "style_score": r.get("style_score"),
             "pace_resilience_score": r.get("pace_resilience_score"),
@@ -117,25 +106,17 @@ def build_row_data(results, limit=None):
 
 
 def build_featured_rows(rows):
-    """
-    上部カード用
-    - 1位の前残り本命候補
-    - 前残り期待値1位
-    同じ馬なら1頭だけ返す
-    """
     if not rows:
         return []
 
     featured = []
 
-    # 順位1位
     top_row = rows[0]
     featured.append({
         **top_row,
         "featured_title": "前残り本命候補",
     })
 
-    # 前残り期待値1位
     best_ev_row = next((r for r in rows if r.get("is_best_ev")), None)
 
     if best_ev_row and best_ev_row["horse_name"] != top_row["horse_name"]:
@@ -148,12 +129,6 @@ def build_featured_rows(rows):
 
 
 def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSION):
-    """
-    Snapshot自動保存
-    - DEBUG=True の開発環境、または staff ユーザーのみ有効
-    - 同じ race × model_version が既にあれば新規保存しない
-    - ?force_snapshot=1 を付けると強制保存
-    """
     is_operator = settings.DEBUG or (
         request.user.is_authenticated and request.user.is_staff
     )
@@ -177,24 +152,24 @@ def maybe_auto_save_snapshot(request, race, analysis, model_version=MODEL_VERSIO
     return snapshot, True, "created"
 
 
-def get_wide_payoff_from_result_snapshot(result_snapshot, pair_key=None):
-    """
-    ワイド払戻取得用
-    未実装なら 0 を返す
-    """
-    if not result_snapshot:
-        return 0
+def get_race_result_amounts(snapshot):
+    race_result = getattr(snapshot, "race_result", None)
+    if not race_result:
+        return 0, 0
 
-    return 0
+    bet = race_result.bet_amount or 0
+    ret = race_result.return_amount or 0
+    return bet, ret
 
 
 def top_page(request):
     race = get_current_race()
-    cutoff_date = date(2026, 4, 5)  # 大阪杯から表示
+    cutoff_date = date(2026, 4, 5)
 
     race_snapshots = (
         RaceAnalysisSnapshot.objects
         .select_related("race")
+        .prefetch_related("race_result")
         .filter(race__race_date__gte=cutoff_date)
         .order_by("race_id", "-calculated_at")
     )
@@ -216,31 +191,10 @@ def top_page(request):
     )
 
     for snapshot in ordered_snapshots:
-        rows = list(
-            EntryAnalysisSnapshot.objects
-            .filter(race_snapshot=snapshot)
-            .select_related("result_snapshot")
-            .order_by("rank_by_value")
-        )
+        bet, ret = get_race_result_amounts(snapshot)
 
-        if len(rows) < 3:
+        if bet <= 0:
             continue
-
-        value1 = rows[0]
-        value2 = rows[1]
-        value3 = rows[2]
-
-        bet = 2000  # 1000円 × 2点
-        ret = 0
-
-        ret += get_wide_payoff_from_result_snapshot(
-            getattr(value1, "result_snapshot", None),
-            pair_key=("value1", "value2"),
-        )
-        ret += get_wide_payoff_from_result_snapshot(
-            getattr(value1, "result_snapshot", None),
-            pair_key=("value1", "value3"),
-        )
 
         total_bet += bet
         total_return += ret
@@ -250,11 +204,16 @@ def top_page(request):
         labels.append(snapshot.race.name)
         roi_values.append(roi)
 
+    total_profit = total_return - total_bet
+
     return render(request, "keibaapp_1/top.html", {
         "race": race,
         "chart_labels": labels,
         "chart_roi": roi_values,
         "total_roi": int((total_return / total_bet) * 100) if total_bet else 0,
+        "total_bet": total_bet,
+        "total_return": total_return,
+        "total_profit": total_profit,
         "race_count": len(labels),
     })
 
@@ -264,10 +223,6 @@ def about_page(request):
 
 
 def races_page(request):
-    """
-    過去の勝負レース履歴
-    対象馬は「前残り期待値1位（rank_by_value=1）」を表示
-    """
     cutoff_date = date(2026, 4, 5)
 
     races = (
@@ -297,18 +252,19 @@ def races_page(request):
         )
 
         result = getattr(value1, "result_snapshot", None) if value1 else None
-
-        bet = 100
-        payoff = result.place_payoff if result and result.place_payoff else 0
-        roi = int((payoff / bet) * 100) if payoff else 0
+        bet, ret = get_race_result_amounts(snapshot)
+        roi = int((ret / bet) * 100) if bet else 0
+        profit = ret - bet
 
         data.append({
             "id": race.id,
             "name": race.name,
             "race_date": race.race_date,
             "honmei": value1.horse_name if value1 else "-",
-            "rank": result.rank if result else None,
-            "place_payoff": payoff,
+            "rank": result.finish_position if result else None,
+            "bet_amount": bet,
+            "return_amount": ret,
+            "profit": profit,
             "roi": roi,
         })
 
@@ -318,10 +274,6 @@ def races_page(request):
 
 
 def race_db(request):
-    """
-    全頭ランキング表示ページ
-    運営側が開いたときのみSnapshotを自動保存
-    """
     race = get_selected_or_current_race(request)
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
@@ -354,10 +306,6 @@ def race_db(request):
 
 
 def top3_db(request):
-    """
-    上位3頭表示ページ
-    こちらでは自動保存しない
-    """
     race = get_selected_or_current_race(request)
     if not race:
         return render(request, "keibaapp_1/race_empty.html")
@@ -379,10 +327,6 @@ def top3_db(request):
 
 @staff_member_required
 def save_race_snapshot(request):
-    """
-    手動保存用
-    /save_snapshot/?race_id=1
-    """
     race = get_selected_or_current_race(request)
     if not race:
         return HttpResponse("race not found")
@@ -395,15 +339,6 @@ def save_race_snapshot(request):
 
 
 def roi_page(request):
-    """
-    Snapshotベースの簡易回収率ページ
-
-    - 集計対象: EntryResultSnapshot が入っているもの
-    - strategy:
-        prob1       = 疑似確率1位を単勝100円で買った想定
-        value1      = 妙味順位1位を単勝100円で買った想定
-        top3_place  = 疑似確率上位3頭を複勝100円ずつ買った想定
-    """
     model_version = request.GET.get("model_version", MODEL_VERSION)
 
     snapshots = (
@@ -541,15 +476,12 @@ def roi_page(request):
     summary = {
         "model_version": model_version,
         "race_count": len(race_blocks),
-
         "prob1_bet": prob1_bet,
         "prob1_return": prob1_return,
         "prob1_roi": round((prob1_return / prob1_bet) * 100, 1) if prob1_bet else 0,
-
         "value1_bet": value1_bet,
         "value1_return": value1_return,
         "value1_roi": round((value1_return / value1_bet) * 100, 1) if value1_bet else 0,
-
         "top3_place_bet": top3_place_bet,
         "top3_place_return": top3_place_return,
         "top3_place_roi": round((top3_place_return / top3_place_bet) * 100, 1) if top3_place_bet else 0,

@@ -10,7 +10,6 @@ class Race(models.Model):
     grade = models.CharField(max_length=2, choices=GRADE_CHOICES)
     track_condition = models.CharField(max_length=10, blank=True, default="")  # 良/稍/重/不
 
-    # MVP用：想定ペースは手入力でOK（後で自動化できる）
     pace = models.CharField(max_length=1, blank=True, default="")  # S/M/H
     pace_comment = models.CharField(max_length=100, blank=True, default="")
 
@@ -32,17 +31,15 @@ class HorseEntry(models.Model):
 
     race = models.ForeignKey(Race, on_delete=models.CASCADE, related_name="entries")
     horse_name = models.CharField(max_length=100)
-    gate = models.PositiveIntegerField(default=0)    # 枠
-    number = models.PositiveIntegerField(default=0)  # 馬番
+    gate = models.PositiveIntegerField(default=0)
+    number = models.PositiveIntegerField(default=0)
     jockey = models.CharField(max_length=100, blank=True, default="")
     run_style = models.CharField(max_length=10, choices=RUN_STYLE_CHOICES, default="UNKNOWN")
 
-    # MVP：過去3走の上がり順位（入力できればOK、なければ空）
     last1_agari_rank = models.PositiveIntegerField(null=True, blank=True)
     last2_agari_rank = models.PositiveIntegerField(null=True, blank=True)
     last3_agari_rank = models.PositiveIntegerField(null=True, blank=True)
 
-    # 追加：過去3走の上がり3F
     last1_agari_3f = models.FloatField(null=True, blank=True)
     last2_agari_3f = models.FloatField(null=True, blank=True)
     last3_agari_3f = models.FloatField(null=True, blank=True)
@@ -61,7 +58,7 @@ class HorseEntry(models.Model):
 
     def __str__(self):
         return f"{self.race.name} - {self.horse_name}"
-    
+
 
 class RaceAnalysisSnapshot(models.Model):
     PACE_CHOICES = [
@@ -141,6 +138,7 @@ class EntryAnalysisSnapshot(models.Model):
     def __str__(self):
         return f"{self.race_snapshot.race.name} - {self.horse_name}"
 
+
 class EntryResultSnapshot(models.Model):
     entry_snapshot = models.OneToOneField(
         EntryAnalysisSnapshot,
@@ -161,10 +159,18 @@ class EntryResultSnapshot(models.Model):
         return f"結果: {self.entry_snapshot.horse_name}"
 
 
+class RaceResultSnapshot(models.Model):
+    race_snapshot = models.OneToOneField(
+        RaceAnalysisSnapshot,
+        on_delete=models.CASCADE,
+        related_name="race_result"
+    )
 
+    bet_amount = models.PositiveIntegerField(null=True, blank=True, help_text="そのレースでの合計投資額")
+    return_amount = models.PositiveIntegerField(null=True, blank=True, help_text="そのレースでの合計払戻額")
 
+    note = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
 
-
-   
-
-  
+    def __str__(self):
+        return f"{self.race_snapshot.race.name} 回収結果"

@@ -9,12 +9,9 @@ from .models import (
     RaceAnalysisSnapshot,
     EntryAnalysisSnapshot,
     EntryResultSnapshot,
+    RaceResultSnapshot,
 )
 
-
-# =========================
-# CSV貼り付け用フォーム
-# =========================
 
 class RaceAdminForm(forms.ModelForm):
     csv_input = forms.CharField(
@@ -39,15 +36,9 @@ class RaceAdminForm(forms.ModelForm):
 
 
 def _to_int(v):
-    """
-    CSVから来る値を安全にintへ変換する。
-    '15' も '15.0' も両方OK。
-    空文字や不正値は None を返す。
-    """
     v = (v or "").strip()
     if not v:
         return None
-
     try:
         return int(float(v))
     except (ValueError, TypeError):
@@ -83,18 +74,6 @@ def _normalize_run_style(v: str) -> str:
 
 
 def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
-    """
-    returns: (created_count, updated_count)
-
-    対応カラム（最新）:
-      horse_name, gate, number, jockey, expected_odds,
-      last1_corner4_pos, last2_corner4_pos, last3_corner4_pos,
-      last1_agari_3f, last2_agari_3f, last3_agari_3f
-
-    旧カラムも一部互換対応:
-      run_style, last1, last2, last3,
-      last1_fs, last1_c4, last2_fs, last2_c4, last3_fs, last3_c4
-    """
     text = (csv_text or "").strip()
     if not text:
         return (0, 0)
@@ -125,23 +104,15 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "jockey": (row.get("jockey") or "").strip(),
                 "run_style": _normalize_run_style(row.get("run_style") or ""),
                 "expected_odds": _to_float(row.get("expected_odds")),
-
-                # 旧: 上がり順位
                 "last1_agari_rank": _to_int(row.get("last1")),
                 "last2_agari_rank": _to_int(row.get("last2")),
                 "last3_agari_rank": _to_int(row.get("last3")),
-
-                # 新: 上がり3F
                 "last1_agari_3f": _to_float(row.get("last1_agari_3f")),
                 "last2_agari_3f": _to_float(row.get("last2_agari_3f")),
                 "last3_agari_3f": _to_float(row.get("last3_agari_3f")),
-
-                # 頭数（新旧両対応）
                 "last1_field_size": _to_int(row.get("last1_field_size") or row.get("last1_fs")),
                 "last2_field_size": _to_int(row.get("last2_field_size") or row.get("last2_fs")),
                 "last3_field_size": _to_int(row.get("last3_field_size") or row.get("last3_fs")),
-
-                # 4角位置（新旧両対応）
                 "last1_corner4_pos": _to_int(row.get("last1_corner4_pos") or row.get("last1_c4")),
                 "last2_corner4_pos": _to_int(row.get("last2_corner4_pos") or row.get("last2_c4")),
                 "last3_corner4_pos": _to_int(row.get("last3_corner4_pos") or row.get("last3_c4")),
@@ -154,9 +125,7 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
             )
             created += 1 if is_created else 0
             updated += 0 if is_created else 1
-
     else:
-        # ヘッダーなし旧仕様
         reader = csv.reader(f)
         for cols in reader:
             if not cols or all((c or "").strip() == "" for c in cols):
@@ -174,11 +143,9 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
                 "jockey": (cols[3] or "").strip() if len(cols) > 3 else "",
                 "run_style": _normalize_run_style(cols[4] if len(cols) > 4 else ""),
                 "expected_odds": _to_float(cols[5]) if len(cols) > 5 else None,
-
                 "last1_agari_rank": _to_int(cols[6]) if len(cols) > 6 else None,
                 "last2_agari_rank": _to_int(cols[7]) if len(cols) > 7 else None,
                 "last3_agari_rank": _to_int(cols[8]) if len(cols) > 8 else None,
-
                 "last1_field_size": _to_int(cols[9]) if len(cols) > 9 else None,
                 "last1_corner4_pos": _to_int(cols[10]) if len(cols) > 10 else None,
                 "last2_field_size": _to_int(cols[11]) if len(cols) > 11 else None,
@@ -197,10 +164,6 @@ def parse_and_upsert_entries(race: Race, csv_text: str) -> tuple[int, int]:
 
     return (created, updated)
 
-
-# =========================
-# Inlines
-# =========================
 
 class HorseEntryInline(admin.TabularInline):
     model = HorseEntry
@@ -252,6 +215,19 @@ class EntryAnalysisSnapshotInline(admin.TabularInline):
     ordering = ("rank_by_prob",)
 
 
+class RaceResultSnapshotInline(admin.StackedInline):
+    model = RaceResultSnapshot
+    extra = 0
+    max_num = 1
+    fields = (
+        "bet_amount",
+        "return_amount",
+        "note",
+        "created_at",
+    )
+    readonly_fields = ("created_at",)
+
+
 class EntryResultSnapshotInline(admin.StackedInline):
     model = EntryResultSnapshot
     extra = 0
@@ -266,10 +242,6 @@ class EntryResultSnapshotInline(admin.StackedInline):
     )
     readonly_fields = ("created_at",)
 
-
-# =========================
-# Race
-# =========================
 
 @admin.register(Race)
 class RaceAdmin(admin.ModelAdmin):
@@ -307,10 +279,6 @@ class RaceAdmin(admin.ModelAdmin):
                 messages.error(request, f"CSV取込に失敗しました：{e}")
 
 
-# =========================
-# HorseEntry
-# =========================
-
 @admin.register(HorseEntry)
 class HorseEntryAdmin(admin.ModelAdmin):
     list_display = (
@@ -332,10 +300,6 @@ class HorseEntryAdmin(admin.ModelAdmin):
     ordering = ("race__race_date", "race", "number")
 
 
-# =========================
-# RaceAnalysisSnapshot
-# =========================
-
 @admin.register(RaceAnalysisSnapshot)
 class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
     list_display = (
@@ -350,6 +314,7 @@ class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
         "model_version",
         "calculated_at",
         "entry_snapshot_count",
+        "has_race_result",
     )
     list_filter = (
         "predicted_pace",
@@ -371,7 +336,7 @@ class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
         "model_version",
         "calculated_at",
     )
-    inlines = [EntryAnalysisSnapshotInline]
+    inlines = [EntryAnalysisSnapshotInline, RaceResultSnapshotInline]
 
     fieldsets = (
         ("基本情報", {
@@ -396,10 +361,11 @@ class RaceAnalysisSnapshotAdmin(admin.ModelAdmin):
         return obj.entry_snapshots.count()
     entry_snapshot_count.short_description = "保存頭数"
 
+    def has_race_result(self, obj):
+        return hasattr(obj, "race_result")
+    has_race_result.boolean = True
+    has_race_result.short_description = "回収結果入力"
 
-# =========================
-# EntryAnalysisSnapshot
-# =========================
 
 @admin.register(EntryAnalysisSnapshot)
 class EntryAnalysisSnapshotAdmin(admin.ModelAdmin):
@@ -502,10 +468,6 @@ class EntryAnalysisSnapshotAdmin(admin.ModelAdmin):
     has_result.short_description = "結果入力"
 
 
-# =========================
-# EntryResultSnapshot
-# =========================
-
 @admin.register(EntryResultSnapshot)
 class EntryResultSnapshotAdmin(admin.ModelAdmin):
     list_display = (
@@ -558,3 +520,45 @@ class EntryResultSnapshotAdmin(admin.ModelAdmin):
     def horse_name(self, obj):
         return obj.entry_snapshot.horse_name
     horse_name.short_description = "馬名"
+
+
+@admin.register(RaceResultSnapshot)
+class RaceResultSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "race_name",
+        "bet_amount",
+        "return_amount",
+        "created_at",
+    )
+    list_filter = (
+        "race_snapshot__race__grade",
+        "race_snapshot__predicted_pace",
+        "created_at",
+    )
+    search_fields = (
+        "race_snapshot__race__name",
+    )
+    list_select_related = (
+        "race_snapshot",
+        "race_snapshot__race",
+    )
+    readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("ひも付け先", {
+            "fields": ("race_snapshot",)
+        }),
+        ("回収結果", {
+            "fields": (
+                "bet_amount",
+                "return_amount",
+                "note",
+                "created_at",
+            )
+        }),
+    )
+
+    def race_name(self, obj):
+        return obj.race_snapshot.race.name
+    race_name.short_description = "レース名"
