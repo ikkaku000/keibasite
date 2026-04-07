@@ -7,9 +7,13 @@
   <title>前残り展開分析</title>
 
   <style>
+    *{
+      box-sizing:border-box;
+    }
+
     body{
       margin:0;
-      font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+      font-family:"Hiragino Sans", "Noto Sans JP", sans-serif;
       background:#0d1526;
       color:#fff;
       line-height:1.8;
@@ -29,7 +33,7 @@
     .nav{
       position:sticky;
       top:0;
-      background:rgba(0,0,0,0.6);
+      background:rgba(0,0,0,0.72);
       backdrop-filter:blur(8px);
       border-bottom:1px solid rgba(255,255,255,0.1);
       z-index:10;
@@ -47,6 +51,7 @@
     .brand{
       font-weight:bold;
       font-size:18px;
+      letter-spacing:0.02em;
     }
 
     .navLinks{
@@ -65,7 +70,7 @@
     }
 
     .hero{
-      padding:80px 0;
+      padding:88px 0 72px;
       background:url("{% static 'keibaapp_1/img/top_back.png' %}") center/cover no-repeat;
       position:relative;
     }
@@ -80,35 +85,51 @@
     .heroContent{
       position:relative;
       z-index:1;
+      max-width:760px;
     }
 
     h1{
-      font-size:40px;
-      margin-bottom:20px;
+      font-size:42px;
+      margin:0 0 20px;
       line-height:1.35;
+      letter-spacing:0.01em;
     }
 
     h2{
-      margin-top:0;
-      margin-bottom:14px;
+      margin:0 0 14px;
+      font-size:28px;
+      line-height:1.4;
     }
 
     h3{
-      margin-top:0;
-      margin-bottom:10px;
+      margin:0 0 10px;
+      font-size:18px;
+      line-height:1.5;
     }
 
     .lead{
-      color:#ccc;
-      margin-bottom:30px;
+      color:#d5d9e3;
+      margin:0 0 30px;
+      font-size:16px;
+    }
+
+    .buttonRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:8px;
     }
 
     .btn{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:48px;
       padding:14px 20px;
-      border-radius:8px;
+      border-radius:10px;
       font-weight:bold;
       transition:0.2s;
+      text-align:center;
     }
 
     .btn:hover{
@@ -121,31 +142,31 @@
     }
 
     .btnSub{
-      border:1px solid #aaa;
-      margin-left:10px;
+      border:1px solid #93a0b8;
       color:#fff;
+      background:rgba(255,255,255,0.02);
     }
 
     .section{
-      padding:60px 0;
+      padding:56px 0;
     }
 
     .card{
       background:#16223a;
-      padding:20px;
-      border-radius:12px;
+      padding:22px;
+      border-radius:14px;
       margin-bottom:20px;
     }
 
     .grid{
       display:grid;
-      grid-template-columns:repeat(3,1fr);
+      grid-template-columns:repeat(3, minmax(0, 1fr));
       gap:16px;
     }
 
     .summaryGrid{
       display:grid;
-      grid-template-columns:repeat(4,1fr);
+      grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:16px;
       margin-top:20px;
     }
@@ -158,19 +179,21 @@
     }
 
     .summaryLabel{
-      color:#aaa;
+      color:#aab3c5;
       font-size:13px;
       margin-bottom:6px;
+      line-height:1.5;
     }
 
     .summaryValue{
       font-size:24px;
       font-weight:bold;
-      line-height:1.4;
+      line-height:1.35;
+      word-break:break-word;
     }
 
     .muted{
-      color:#aaa;
+      color:#aab3c5;
       font-size:14px;
     }
 
@@ -182,7 +205,7 @@
 
     .chartEmpty{
       padding:24px 0 4px;
-      color:#aaa;
+      color:#aab3c5;
       font-size:14px;
     }
 
@@ -193,7 +216,7 @@
       font-size:13px;
     }
 
-    @media(max-width:900px){
+    @media (max-width: 900px){
       .grid{
         grid-template-columns:1fr;
       }
@@ -203,18 +226,120 @@
       }
 
       h1{
-        font-size:28px;
+        font-size:32px;
       }
 
-      .btnSub{
-        margin-left:0;
-        margin-top:10px;
+      h2{
+        font-size:24px;
       }
     }
 
-    @media(max-width:640px){
+    @media (max-width: 640px){
+      .container{
+        padding:0 14px;
+      }
+
+      .navInner{
+        align-items:flex-start;
+        gap:10px;
+        padding:12px 0;
+      }
+
+      .brand{
+        font-size:17px;
+      }
+
+      .navLinks{
+        gap:10px 14px;
+      }
+
+      .navLinks a{
+        font-size:13px;
+      }
+
+      .hero{
+        padding:54px 0 44px;
+      }
+
+      .heroContent{
+        max-width:none;
+      }
+
+      h1{
+        font-size:28px;
+        line-height:1.42;
+        margin-bottom:16px;
+      }
+
+      h2{
+        font-size:22px;
+        margin-bottom:12px;
+      }
+
+      h3{
+        font-size:17px;
+      }
+
+      .lead{
+        font-size:14px;
+        margin-bottom:22px;
+      }
+
+      .buttonRow{
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .btn{
+        width:100%;
+        padding:13px 16px;
+        min-height:46px;
+        font-size:15px;
+      }
+
+      .section{
+        padding:40px 0;
+      }
+
+      .card{
+        padding:16px;
+        border-radius:12px;
+      }
+
       .summaryGrid{
         grid-template-columns:1fr;
+        gap:12px;
+      }
+
+      .summaryCard{
+        padding:14px;
+      }
+
+      .summaryLabel{
+        font-size:12px;
+      }
+
+      .summaryValue{
+        font-size:22px;
+      }
+
+      .muted{
+        font-size:13px;
+        line-height:1.7;
+      }
+
+      .chartWrap{
+        min-height:220px;
+      }
+
+      .chartEmpty{
+        font-size:13px;
+        padding-top:12px;
+      }
+
+      footer{
+        padding:28px 0;
+        font-size:12px;
       }
     }
   </style>
@@ -249,8 +374,10 @@
       前で運べる馬に注目し、3着内に残る余地がある馬を整理します。
     </p>
 
-    <a class="btn btnMain" href="/race/">▶ 今週の勝負レースを見る</a>
-    <a class="btn btnSub" href="/about/">ロジックを見る</a>
+    <div class="buttonRow">
+      <a class="btn btnMain" href="/race/">▶ 今週の勝負レースを見る</a>
+      <a class="btn btnSub" href="/about/">ロジックを見る</a>
+    </div>
 
   </div>
 </section>

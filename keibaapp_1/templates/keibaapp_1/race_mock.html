@@ -4,311 +4,836 @@
 
 {% block content %}
 
-<h1 style="margin-bottom:10px;">
-  {{ race.name }}
-</h1>
+<style>
+  .race-page {
+    color: #222;
+  }
 
-<div class="meta" style="margin-bottom:14px; display:flex; flex-wrap:wrap; gap:8px;">
-  <span class="badge">中央競馬</span>
-  <span class="badge">重賞 {{ race.grade }}</span>
-  <span class="badge">{{ race.course }}</span>
-  <span class="badge">想定ペース：{{ race.pace }}</span>
-  <span class="badge">{{ race.pace_comment }}</span>
+  .race-title {
+    margin: 0 0 10px 0;
+    line-height: 1.45;
+  }
 
-  {% if debug or request.user.is_staff %}
-    <span class="badge" style="background:#222;color:#fff;">
-      {% if snapshot_created %}
-        🟢 Snapshot新規保存
-      {% elif snapshot_id %}
-        🔵 Snapshot保存済み（ID:{{ snapshot_id }}）
-      {% else %}
-        ⚪ 未保存
-      {% endif %}
-    </span>
-    <span class="badge" style="background:#1f2937;color:#fff;">
-      model: {{ model_version }}
-    </span>
+  .race-meta {
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .race-section-box {
+    margin-bottom: 22px;
+    padding: 18px 20px;
+    border: 1px solid #e8e8e8;
+    border-radius: 16px;
+    background: #fafafa;
+  }
+
+  .race-section-title {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    line-height: 1.5;
+  }
+
+  .race-section-text {
+    margin: 0;
+    color: #555;
+    line-height: 1.9;
+  }
+
+  .featured-grid {
+    display: grid;
+    grid-template-columns: repeat({% if featured_rows|length == 1 %}1{% else %}2{% endif %}, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .featured-card {
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .featured-card-main {
+    background: #fff7e8;
+  }
+
+  .featured-card-sub {
+    background: #fff;
+  }
+
+  .featured-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+
+  .featured-horse {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .featured-meta {
+    margin-top: 6px;
+    color: #666;
+    line-height: 1.7;
+  }
+
+  .featured-reason {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.8;
+  }
+
+  .summary-grid {
+    margin-bottom: 22px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .summary-card {
+    border: 1px solid #ececec;
+    border-radius: 14px;
+    padding: 16px;
+    background: #fff;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.5;
+  }
+
+  .summary-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .desktop-table-wrap {
+    overflow-x: auto;
+  }
+
+  .desktop-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1180px;
+  }
+
+  .desktop-table thead tr {
+    background: #f5f5f5;
+  }
+
+  .desktop-table th {
+    padding: 12px 10px;
+  }
+
+  .desktop-table td {
+    padding: 12px 10px;
+  }
+
+  .desktop-subrow td {
+    padding: 6px 10px 14px 10px;
+    font-size: 12px;
+    color: #777;
+    line-height: 1.8;
+    background: #fff;
+  }
+
+  .row-first {
+    background: #fff7e6;
+    font-weight: bold;
+  }
+
+  .row-top3 {
+    background: #fcfcfc;
+  }
+
+  .horse-cell-main {
+    font-weight: 700;
+    line-height: 1.6;
+  }
+
+  .horse-cell-reason {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  .tag-inline {
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .tag-main {
+    color: #b26a00;
+  }
+
+  .tag-sub {
+    color: #666;
+    font-weight: 400;
+  }
+
+  .tag-ev {
+    color: #d32f2f;
+  }
+
+  .place-pill {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .pill-main {
+    background: #fff0c7;
+    color: #8a5a00;
+  }
+
+  .pill-souma {
+    background: #f2f4f7;
+    color: #444;
+  }
+
+  .pill-hole {
+    background: #ffe3e3;
+    color: #c62828;
+  }
+
+  .pill-risk {
+    background: #f1f1f1;
+    color: #444;
+  }
+
+  .pill-default {
+    background: #f6f6f6;
+    color: #444;
+  }
+
+  .ev-high {
+    color: #e53935;
+  }
+
+  .ev-mid {
+    color: #ff9800;
+  }
+
+  .usage-box {
+    margin-top: 20px;
+    padding: 16px 18px;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    background: #fff;
+    color: #555;
+    line-height: 1.9;
+  }
+
+  .cta-box {
+    max-width: 900px;
+    margin: 40px auto 0;
+    border: 1px solid #e5e5e5;
+    border-radius: 16px;
+    padding: 28px;
+    background: #fafafa;
+    text-align: center;
+  }
+
+  .cta-title {
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .cta-text {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.8;
+  }
+
+  .cta-buttons {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cta-btn-main,
+  .cta-btn-sub {
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .cta-btn-main {
+    background: #111;
+    color: #fff;
+  }
+
+  .cta-btn-sub {
+    border: 1px solid #999;
+    color: #333;
+    background: #fff;
+  }
+
+  .mobile-cards {
+    display: none;
+    margin-top: 4px;
+  }
+
+  .mobile-rank-card {
+    border: 1px solid #e7e7e7;
+    border-radius: 16px;
+    padding: 16px;
+    background: #fff;
+    margin-bottom: 14px;
+  }
+
+  .mobile-rank-card.main-card {
+    background: #fff7e6;
+    border-color: #f1dfb6;
+  }
+
+  .mobile-rank-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-rank-num {
+    font-size: 13px;
+    color: #666;
+    font-weight: 700;
+    min-width: 36px;
+  }
+
+  .mobile-rank-name {
+    flex: 1;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .mobile-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .mobile-reason {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.8;
+    margin-top: 10px;
+  }
+
+  .mobile-data-grid {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    gap: 8px 12px;
+    margin-top: 14px;
+  }
+
+  .mobile-data-label {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  .mobile-data-value {
+    font-size: 13px;
+    color: #222;
+    line-height: 1.6;
+    font-weight: 500;
+    word-break: break-word;
+  }
+
+  .mobile-debug {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #ddd;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.8;
+  }
+
+  @media (max-width: 900px) {
+    .featured-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .summary-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .desktop-table-wrap {
+      display: none;
+    }
+
+    .mobile-cards {
+      display: block;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .race-title {
+      font-size: 28px;
+      line-height: 1.45;
+    }
+
+    .race-meta {
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .race-section-box {
+      padding: 16px;
+      border-radius: 14px;
+      margin-bottom: 18px;
+    }
+
+    .race-section-title {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .race-section-text {
+      font-size: 14px;
+      line-height: 1.85;
+    }
+
+    .featured-card {
+      padding: 16px;
+      border-radius: 14px;
+    }
+
+    .featured-horse {
+      font-size: 20px;
+    }
+
+    .featured-meta {
+      font-size: 14px;
+    }
+
+    .featured-reason {
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .summary-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      padding: 14px;
+    }
+
+    .summary-value {
+      font-size: 20px;
+    }
+
+    .mobile-rank-card {
+      padding: 15px;
+      border-radius: 14px;
+    }
+
+    .mobile-rank-name {
+      font-size: 18px;
+    }
+
+    .mobile-data-grid {
+      grid-template-columns: 100px 1fr;
+      gap: 8px 10px;
+    }
+
+    .mobile-data-label,
+    .mobile-data-value {
+      font-size: 13px;
+    }
+
+    .usage-box {
+      padding: 15px;
+      font-size: 14px;
+      line-height: 1.85;
+    }
+
+    .cta-box {
+      padding: 20px 16px;
+      border-radius: 14px;
+    }
+
+    .cta-buttons {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .cta-btn-main,
+    .cta-btn-sub {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="race-page">
+
+  <h1 class="race-title">
+    {{ race.name }}
+  </h1>
+
+  <div class="race-meta">
+    <span class="badge">中央競馬</span>
+    <span class="badge">重賞 {{ race.grade }}</span>
+    <span class="badge">{{ race.course }}</span>
+    <span class="badge">想定ペース：{{ race.pace }}</span>
+    <span class="badge">{{ race.pace_comment }}</span>
+
+    {% if debug or request.user.is_staff %}
+      <span class="badge" style="background:#222;color:#fff;">
+        {% if snapshot_created %}
+          🟢 Snapshot新規保存
+        {% elif snapshot_id %}
+          🔵 Snapshot保存済み（ID:{{ snapshot_id }}）
+        {% else %}
+          ⚪ 未保存
+        {% endif %}
+      </span>
+      <span class="badge" style="background:#1f2937;color:#fff;">
+        model: {{ model_version }}
+      </span>
+    {% endif %}
+  </div>
+
+  <section class="race-section-box">
+    <h2 class="race-section-title">このページの見方</h2>
+    <p class="race-section-text">
+      このランキングは、<b>勝ち馬予想ではなく</b>、
+      <b>4角で前につけて3着内に残る可能性が高い馬</b>を重視しています。<br>
+      特に、<b>前で運べる再現性</b>、
+      <b>位置取りの安定感</b>、
+      <b>人気と先行力のズレ</b>を見ながら、
+      ワイド・3連複で相手に使いやすい馬を探す想定です。
+    </p>
+  </section>
+
+  {% if featured_rows %}
+  <section class="featured-grid">
+    {% for f in featured_rows %}
+    <div class="featured-card {% if forloop.first %}featured-card-main{% else %}featured-card-sub{% endif %}">
+      <div class="featured-label">{{ f.featured_title }}</div>
+      <div class="featured-horse">{{ f.horse_name }}</div>
+      <div class="featured-meta">
+        {{ f.style }} / {{ f.place_label }}
+      </div>
+      <div class="featured-reason">
+        {{ f.reason }}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
   {% endif %}
-</div>
 
-<section style="
-  margin-bottom:22px;
-  padding:18px 20px;
-  border:1px solid #e8e8e8;
-  border-radius:16px;
-  background:#fafafa;
-">
-  <h2 style="margin:0 0 8px 0;font-size:20px;">このページの見方</h2>
-  <p style="margin:0;color:#555;line-height:1.9;">
-    このランキングは、<b>勝ち馬予想ではなく</b>、
-    <b>4角で前につけて3着内に残る可能性が高い馬</b>を重視しています。<br>
-    特に、<b>前で運べる再現性</b>、
-    <b>位置取りの安定感</b>、
-    <b>人気と先行力のズレ</b>を見ながら、
-    ワイド・3連複で相手に使いやすい馬を探す想定です。
-  </p>
-</section>
-
-{% if featured_rows %}
-<section style="
-  display:grid;
-  grid-template-columns:repeat({% if featured_rows|length == 1 %}1{% else %}2{% endif %},1fr);
-  gap:14px;
-  margin-bottom:24px;
-">
-  {% for f in featured_rows %}
-  <div style="border:1px solid #ececec;border-radius:16px;padding:18px;background:{% if forloop.first %}#fff7e8{% else %}#fff{% endif %};">
-    <div style="font-size:12px;color:#888;margin-bottom:6px;">{{ f.featured_title }}</div>
-    <div style="font-size:22px;font-weight:700;">{{ f.horse_name }}</div>
-    <div style="margin-top:6px;color:#666;">
-      {{ f.style }} / {{ f.place_label }}
+  <section class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">想定ペース</div>
+      <div class="summary-value">{{ race.pace }}</div>
     </div>
-    <div style="margin-top:8px;font-size:13px;color:#444;line-height:1.7;">
-      {{ f.reason }}
+
+    <div class="summary-card">
+      <div class="summary-label">前圧比率</div>
+      <div class="summary-value">{{ race.front_ratio|default:"-" }}</div>
     </div>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
 
-<section style="
-  margin-bottom:22px;
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:12px;
-">
-  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
-    <div style="font-size:12px;color:#888;">想定ペース</div>
-    <div style="font-size:22px;font-weight:700;margin-top:4px;">{{ race.pace }}</div>
-  </div>
-
-  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
-    <div style="font-size:12px;color:#888;">前圧比率</div>
-    <div style="font-size:22px;font-weight:700;margin-top:4px;">
-      {{ race.front_ratio|default:"-" }}
+    <div class="summary-card">
+      <div class="summary-label">逃げ候補数</div>
+      <div class="summary-value">{{ race.meta.n_nige|default:"-" }}</div>
     </div>
-  </div>
 
-  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
-    <div style="font-size:12px;color:#888;">逃げ候補数</div>
-    <div style="font-size:22px;font-weight:700;margin-top:4px;">
-      {{ race.meta.n_nige|default:"-" }}
+    <div class="summary-card">
+      <div class="summary-label">前受け候補数</div>
+      <div class="summary-value">{{ race.meta.n_front|default:"-" }}</div>
     </div>
-  </div>
+  </section>
 
-  <div style="border:1px solid #ececec;border-radius:14px;padding:16px;background:#fff;">
-    <div style="font-size:12px;color:#888;">前受け候補数</div>
-    <div style="font-size:22px;font-weight:700;margin-top:4px;">
-      {{ race.meta.n_front|default:"-" }}
-    </div>
-  </div>
-</section>
+  <div class="desktop-table-wrap">
+    <table class="desktop-table">
+      <thead>
+        <tr>
+          <th>順位</th>
+          <th style="text-align:left;">馬名</th>
+          <th>評価</th>
+          <th>脚質</th>
+          <th>4角指数</th>
+          <th>5番手以内率</th>
+          <th>3番手以内率</th>
+          <th>位置取り安定感</th>
+          <th>前残り指数</th>
+          <th>相対評価</th>
+          <th>妙味</th>
+          <th>想定オッズ</th>
+        </tr>
+      </thead>
 
-<div style="overflow-x:auto;">
-  <table style="width:100%;border-collapse:collapse;min-width:1180px;">
-    <thead>
-      <tr style="background:#f5f5f5;">
-        <th style="padding:12px 10px;">順位</th>
-        <th style="padding:12px 10px;text-align:left;">馬名</th>
-        <th style="padding:12px 10px;">評価</th>
-        <th style="padding:12px 10px;">脚質</th>
-        <th style="padding:12px 10px;">4角指数</th>
-        <th style="padding:12px 10px;">5番手以内率</th>
-        <th style="padding:12px 10px;">3番手以内率</th>
-        <th style="padding:12px 10px;">位置取り安定感</th>
-        <th style="padding:12px 10px;">前残り指数</th>
-        <th style="padding:12px 10px;">相対評価</th>
-        <th style="padding:12px 10px;">妙味</th>
-        <th style="padding:12px 10px;">想定オッズ</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {% for r in rows %}
-      <tr
-        style="
-          border-bottom:1px solid #eee;
-          {% if forloop.first %}
-            background:#fff7e6;
-            font-weight:bold;
-          {% elif forloop.counter <= 3 %}
-            background:#fcfcfc;
-          {% endif %}
-        "
-      >
-        <td style="padding:12px 10px;text-align:center;">{{ r.rank }}</td>
-
-        <td style="padding:12px 10px;">
-          <div style="font-weight:700;">
-            {{ r.horse_name }}
+      <tbody>
+        {% for r in rows %}
+        <tr
+          class="
             {% if forloop.first %}
-              <span style="margin-left:6px;font-size:11px;color:#b26a00;">前残り本命候補</span>
-            {% elif forloop.counter == 2 %}
-              <span style="margin-left:6px;font-size:11px;color:#666;">相手候補</span>
+              row-first
+            {% elif forloop.counter <= 3 %}
+              row-top3
             {% endif %}
+          "
+          style="border-bottom:1px solid #eee;"
+        >
+          <td style="text-align:center;">{{ r.rank }}</td>
+
+          <td>
+            <div class="horse-cell-main">
+              {{ r.horse_name }}
+              {% if forloop.first %}
+                <span class="tag-inline tag-main">前残り本命候補</span>
+              {% elif forloop.counter == 2 %}
+                <span class="tag-inline tag-sub">相手候補</span>
+              {% endif %}
+              {% if r.is_best_ev %}
+                <span class="tag-inline tag-ev">前残り期待値1位</span>
+              {% endif %}
+            </div>
+            <div class="horse-cell-reason">
+              {{ r.reason }}
+            </div>
+          </td>
+
+          <td style="text-align:center;">
+            <span class="
+              place-pill
+              {% if r.place_label == '前残り本命候補' %}
+                pill-main
+              {% elif r.place_label == 'ワイド相手候補' %}
+                pill-souma
+              {% elif r.place_label == '先行穴候補' %}
+                pill-hole
+              {% elif r.place_label == '後方リスクあり' %}
+                pill-risk
+              {% else %}
+                pill-default
+              {% endif %}
+            ">
+              {% if r.place_label == '前残り本命候補' %}
+                前残り候補
+              {% else %}
+                {{ r.place_label }}
+              {% endif %}
+            </span>
+          </td>
+
+          <td style="text-align:center;">{{ r.style }}</td>
+          <td style="text-align:center;">{{ r.corner4_index|default:"-" }}</td>
+          <td style="text-align:center;">{{ r.front5_rate|floatformat:1 }}%</td>
+          <td style="text-align:center;">{{ r.front3_rate|floatformat:1 }}%</td>
+          <td style="text-align:center;">{{ r.consistency|floatformat:1 }}%</td>
+          <td style="text-align:center;"><b>{{ r.tempo|floatformat:2 }}</b></td>
+          <td style="text-align:center;">{{ r.win_prob }}%</td>
+
+          <td style="text-align:center;">
+            <b class="
+              {% if r.ev and r.ev > 1.5 %}
+                ev-high
+              {% elif r.ev and r.ev > 1.0 %}
+                ev-mid
+              {% endif %}
+            ">
+              {{ r.ev|floatformat:2 }}
+            </b>
+          </td>
+
+          <td style="text-align:center;">{{ r.odds|default:"-" }}</td>
+        </tr>
+
+        <tr class="desktop-subrow">
+          <td colspan="12">
+            4角平均位置: {{ r.avg_corner4_pos|default:"-" }} /
+            逃げ率: {{ r.nige_rate|floatformat:1 }}% /
+            位置ブレ: {{ r.std_corner4_pos|default:"-" }} /
+            上がり平均順位: {{ r.agari_avg_rank|default:"-" }} /
+            データ信頼度: {{ r.data_confidence|default:"-" }}
+            {% if debug %}
+              <br>
+              front_keep: {{ r.front_keep_score|default:"-" }} /
+              style: {{ r.style_score|default:"-" }} /
+              resilience: {{ r.pace_resilience_score|default:"-" }} /
+              agari: {{ r.agari_score|default:"-" }} /
+              odds: {{ r.odds_score|default:"-" }} /
+              senko_hole: {{ r.senko_hole_score|default:"-" }} /
+              back_penalty: {{ r.back_penalty|default:"-" }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mobile-cards">
+    {% for r in rows %}
+    <div class="mobile-rank-card {% if forloop.first %}main-card{% endif %}">
+      <div class="mobile-rank-head">
+        <div class="mobile-rank-num">順位 {{ r.rank }}</div>
+        <div style="flex:1;">
+          <div class="mobile-rank-name">{{ r.horse_name }}</div>
+          <div class="mobile-tags">
+            {% if forloop.first %}
+              <span class="place-pill pill-main">前残り本命候補</span>
+            {% elif forloop.counter <= 3 %}
+              <span class="place-pill pill-souma">相手候補</span>
+            {% endif %}
+
             {% if r.is_best_ev %}
-              <span style="margin-left:6px;font-size:11px;color:#d32f2f;font-weight:700;">前残り期待値1位</span>
+              <span class="place-pill pill-hole">前残り期待値1位</span>
             {% endif %}
+
+            <span class="
+              place-pill
+              {% if r.place_label == '前残り本命候補' %}
+                pill-main
+              {% elif r.place_label == 'ワイド相手候補' %}
+                pill-souma
+              {% elif r.place_label == '先行穴候補' %}
+                pill-hole
+              {% elif r.place_label == '後方リスクあり' %}
+                pill-risk
+              {% else %}
+                pill-default
+              {% endif %}
+            ">
+              {% if r.place_label == '前残り本命候補' %}
+                前残り候補
+              {% else %}
+                {{ r.place_label }}
+              {% endif %}
+            </span>
           </div>
-          <div style="margin-top:4px;font-size:12px;color:#666;line-height:1.6;">
-            {{ r.reason }}
-          </div>
-        </td>
+        </div>
+      </div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          <span style="
-            display:inline-block;
-            padding:5px 10px;
-            border-radius:999px;
-            font-size:12px;
-            font-weight:700;
-            background:
-              {% if r.place_label == '前残り本命候補' %}#fff0c7
-              {% elif r.place_label == 'ワイド相手候補' %}#f2f4f7
-              {% elif r.place_label == '先行穴候補' %}#ffe3e3
-              {% elif r.place_label == '後方リスクあり' %}#f1f1f1
-              {% else %}#f6f6f6{% endif %};
-            color:
-              {% if r.place_label == '前残り本命候補' %}#8a5a00
-              {% elif r.place_label == '先行穴候補' %}#c62828
-              {% else %}#444{% endif %};
-          ">
-            {% if r.place_label == '前残り本命候補' %}
-              前残り候補
-            {% else %}
-              {{ r.place_label }}
-            {% endif %}
-          </span>
-        </td>
+      <div class="mobile-reason">
+        {{ r.reason }}
+      </div>
 
-        <td style="padding:12px 10px;text-align:center;">{{ r.style }}</td>
+      <div class="mobile-data-grid">
+        <div class="mobile-data-label">脚質</div>
+        <div class="mobile-data-value">{{ r.style }}</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.corner4_index|default:"-" }}
-        </td>
+        <div class="mobile-data-label">4角指数</div>
+        <div class="mobile-data-value">{{ r.corner4_index|default:"-" }}</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.front5_rate|floatformat:1 }}%
-        </td>
+        <div class="mobile-data-label">5番手以内率</div>
+        <div class="mobile-data-value">{{ r.front5_rate|floatformat:1 }}%</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.front3_rate|floatformat:1 }}%
-        </td>
+        <div class="mobile-data-label">3番手以内率</div>
+        <div class="mobile-data-value">{{ r.front3_rate|floatformat:1 }}%</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.consistency|floatformat:1 }}%
-        </td>
+        <div class="mobile-data-label">位置取り安定感</div>
+        <div class="mobile-data-value">{{ r.consistency|floatformat:1 }}%</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          <b>{{ r.tempo|floatformat:2 }}</b>
-        </td>
+        <div class="mobile-data-label">前残り指数</div>
+        <div class="mobile-data-value"><b>{{ r.tempo|floatformat:2 }}</b></div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.win_prob }}%
-        </td>
+        <div class="mobile-data-label">相対評価</div>
+        <div class="mobile-data-value">{{ r.win_prob }}%</div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          <b style="
+        <div class="mobile-data-label">妙味</div>
+        <div class="mobile-data-value">
+          <b class="
             {% if r.ev and r.ev > 1.5 %}
-              color:#e53935;
+              ev-high
             {% elif r.ev and r.ev > 1.0 %}
-              color:#ff9800;
+              ev-mid
             {% endif %}
           ">
             {{ r.ev|floatformat:2 }}
           </b>
-        </td>
+        </div>
 
-        <td style="padding:12px 10px;text-align:center;">
-          {{ r.odds|default:"-" }}
-        </td>
-      </tr>
+        <div class="mobile-data-label">想定オッズ</div>
+        <div class="mobile-data-value">{{ r.odds|default:"-" }}</div>
 
-      <tr>
-        <td colspan="12" style="padding:6px 10px 14px 10px;font-size:12px;color:#777;line-height:1.8;background:#fff;">
-          4角平均位置: {{ r.avg_corner4_pos|default:"-" }} /
-          逃げ率: {{ r.nige_rate|floatformat:1 }}% /
-          位置ブレ: {{ r.std_corner4_pos|default:"-" }} /
-          上がり平均順位: {{ r.agari_avg_rank|default:"-" }} /
-          データ信頼度: {{ r.data_confidence|default:"-" }}
-          {% if debug %}
-            <br>
-            front_keep: {{ r.front_keep_score|default:"-" }} /
-            style: {{ r.style_score|default:"-" }} /
-            resilience: {{ r.pace_resilience_score|default:"-" }} /
-            agari: {{ r.agari_score|default:"-" }} /
-            odds: {{ r.odds_score|default:"-" }} /
-            senko_hole: {{ r.senko_hole_score|default:"-" }} /
-            back_penalty: {{ r.back_penalty|default:"-" }}
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+        <div class="mobile-data-label">4角平均位置</div>
+        <div class="mobile-data-value">{{ r.avg_corner4_pos|default:"-" }}</div>
 
-<div style="
-  margin-top:20px;
-  padding:16px 18px;
-  border:1px solid #eee;
-  border-radius:14px;
-  background:#fff;
-  color:#555;
-  line-height:1.9;
-">
-  <b>使い方の目安</b><br>
-  1位は「前残り本命候補」、2〜3位は「ワイド・3連複の相手候補」として見る想定です。<br>
-  5番手以内率・3番手以内率が高い馬は、4角で前に収まる再現性がある馬としてチェックしやすくしています。<br>
-  妙味が高い馬は、人気のわりに前で残る余地がある馬として注目しやすくしています。
-</div>
+        <div class="mobile-data-label">逃げ率</div>
+        <div class="mobile-data-value">{{ r.nige_rate|floatformat:1 }}%</div>
 
-<hr style="margin:40px 0;">
+        <div class="mobile-data-label">位置ブレ</div>
+        <div class="mobile-data-value">{{ r.std_corner4_pos|default:"-" }}</div>
 
-<section style="
-  max-width:900px;
-  margin:auto;
-  border:1px solid #e5e5e5;
-  border-radius:16px;
-  padding:28px;
-  background:#fafafa;
-  text-align:center;
-">
-  <h2 style="margin-bottom:10px;">
-    この分析が役立ったら
-  </h2>
+        <div class="mobile-data-label">上がり平均順位</div>
+        <div class="mobile-data-value">{{ r.agari_avg_rank|default:"-" }}</div>
 
-  <p style="color:#666;margin-bottom:25px;line-height:1.8;">
-    現在は <b>今週の勝負レースのみ公開</b>しています。<br>
-    継続的に成績も公開していく予定です。
-  </p>
+        <div class="mobile-data-label">データ信頼度</div>
+        <div class="mobile-data-value">{{ r.data_confidence|default:"-" }}</div>
+      </div>
 
-  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
-
-    <a href="/" style="
-      padding:12px 20px;
-      border-radius:10px;
-      background:#111;
-      color:#fff;
-      font-weight:bold;
-      text-decoration:none;
-    ">
-      TOPへ戻る
-    </a>
-
-    <a href="/about/" style="
-      padding:12px 20px;
-      border-radius:10px;
-      border:1px solid #999;
-      color:#333;
-      font-weight:bold;
-      text-decoration:none;
-      background:#fff;
-    ">
-      分析ロジックを見る
-    </a>
-
+      {% if debug %}
+      <div class="mobile-debug">
+        front_keep: {{ r.front_keep_score|default:"-" }} /
+        style: {{ r.style_score|default:"-" }} /
+        resilience: {{ r.pace_resilience_score|default:"-" }} /
+        agari: {{ r.agari_score|default:"-" }} /
+        odds: {{ r.odds_score|default:"-" }} /
+        senko_hole: {{ r.senko_hole_score|default:"-" }} /
+        back_penalty: {{ r.back_penalty|default:"-" }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
   </div>
-</section>
+
+  <div class="usage-box">
+    <b>使い方の目安</b><br>
+    1位は「前残り本命候補」、2〜3位は「ワイド・3連複の相手候補」として見る想定です。<br>
+    5番手以内率・3番手以内率が高い馬は、4角で前に収まる再現性がある馬としてチェックしやすくしています。<br>
+    妙味が高い馬は、人気のわりに前で残る余地がある馬として注目しやすくしています。
+  </div>
+
+  <section class="cta-box">
+    <h2 class="cta-title">
+      この分析が役立ったら
+    </h2>
+
+    <p class="cta-text">
+      現在は <b>今週の勝負レースのみ公開</b>しています。<br>
+      継続的に成績も公開していく予定です。
+    </p>
+
+    <div class="cta-buttons">
+      <a href="/" class="cta-btn-main">
+        TOPへ戻る
+      </a>
+
+      <a href="/about/" class="cta-btn-sub">
+        分析ロジックを見る
+      </a>
+    </div>
+  </section>
+
+</div>
 
 {% endblock %}

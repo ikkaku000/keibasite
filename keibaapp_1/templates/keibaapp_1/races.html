@@ -4,49 +4,178 @@
 
 {% block content %}
 
+<style>
+  .history-lead {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.8;
+  }
+
+  .history-table-wrap {
+    overflow-x: auto;
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1100px;
+  }
+
+  .history-table thead tr {
+    background: #f5f5f5;
+  }
+
+  .history-table th,
+  .history-table td {
+    padding: 10px;
+  }
+
+  .history-table tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  .text-center {
+    text-align: center;
+  }
+
+  .text-left {
+    text-align: left;
+  }
+
+  .horse-name {
+    font-weight: 700;
+  }
+
+  .profit-plus,
+  .roi-plus {
+    color: #4caf50;
+    font-weight: 700;
+  }
+
+  .profit-minus,
+  .roi-minus {
+    color: #f44336;
+    font-weight: 700;
+  }
+
+  .history-note {
+    color: #888;
+    font-size: 14px;
+    margin-top: 14px;
+    line-height: 1.7;
+  }
+
+  .history-cards {
+    display: none;
+  }
+
+  .history-card {
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .history-card-date {
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 6px;
+  }
+
+  .history-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .history-card-grid {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 8px 12px;
+    margin-bottom: 14px;
+  }
+
+  .history-card-label {
+    color: #666;
+    font-size: 14px;
+  }
+
+  .history-card-value {
+    font-size: 14px;
+    font-weight: 500;
+    word-break: break-word;
+  }
+
+  .history-card-link a {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f5f5f5;
+    text-decoration: none;
+    color: #222;
+    font-weight: 700;
+  }
+
+  .history-card-link a:hover {
+    background: #ebebeb;
+  }
+
+  @media (max-width: 768px) {
+    .history-table-wrap {
+      display: none;
+    }
+
+    .history-cards {
+      display: block;
+    }
+  }
+</style>
+
 <h1 style="margin-bottom:10px;">過去の勝負レース履歴</h1>
 
-<p style="color:#666; margin-bottom:20px; line-height:1.8;">
-このページでは、これまでに公開した勝負レースの履歴をまとめています。<br>
-表示対象は、各レースにおける「前残り期待値1位」の馬です。<br>
-回収率と収支は、管理画面に入力した投資額・払戻額をもとに算出しています。
+<p class="history-lead">
+  このページでは、これまでに公開した勝負レースの履歴をまとめています。<br>
+  表示対象は、各レースにおける「前残り期待値1位」の馬です。<br>
+  回収率と収支は、管理画面に入力した投資額・払戻額をもとに算出しています。
 </p>
 
 {% if races %}
 
-<div style="overflow-x:auto;">
-  <table style="width:100%; border-collapse:collapse; min-width:1100px;">
+<div class="history-table-wrap">
+  <table class="history-table">
     <thead>
-      <tr style="background:#f5f5f5;">
-        <th style="padding:10px;">日付</th>
-        <th style="padding:10px; text-align:left;">レース名</th>
-        <th style="padding:10px;">前残り期待値1位</th>
-        <th style="padding:10px;">着順</th>
-        <th style="padding:10px;">投資額</th>
-        <th style="padding:10px;">払戻額</th>
-        <th style="padding:10px;">収支</th>
-        <th style="padding:10px;">回収率</th>
-        <th style="padding:10px;">リンク</th>
+      <tr>
+        <th class="text-center">日付</th>
+        <th class="text-left">レース名</th>
+        <th class="text-center">前残り期待値1位</th>
+        <th class="text-center">着順</th>
+        <th class="text-center">投資額</th>
+        <th class="text-center">払戻額</th>
+        <th class="text-center">収支</th>
+        <th class="text-center">回収率</th>
+        <th class="text-center">リンク</th>
       </tr>
     </thead>
 
     <tbody>
       {% for r in races %}
-      <tr style="border-bottom:1px solid #eee;">
-
-        <td style="padding:10px; text-align:center;">
+      <tr>
+        <td class="text-center">
           {{ r.race_date }}
         </td>
 
-        <td style="padding:10px;">
+        <td class="text-left">
           {{ r.name }}
         </td>
 
-        <td style="padding:10px; text-align:center; font-weight:700;">
+        <td class="text-center horse-name">
           {{ r.honmei }}
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           {% if r.rank %}
             {{ r.rank }}着
           {% else %}
@@ -54,7 +183,7 @@
           {% endif %}
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           {% if r.bet_amount %}
             {{ r.bet_amount }}円
           {% else %}
@@ -62,56 +191,123 @@
           {% endif %}
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           {{ r.return_amount|default:0 }}円
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           {% if r.bet_amount %}
-            <b style="
-              {% if r.profit > 0 %}
-                color:#4caf50;
-              {% elif r.profit < 0 %}
-                color:#f44336;
-              {% endif %}
-            ">
-              {% if r.profit > 0 %}+{% endif %}{{ r.profit }}円
-            </b>
+            {% if r.profit > 0 %}
+              <span class="profit-plus">+{{ r.profit }}円</span>
+            {% elif r.profit < 0 %}
+              <span class="profit-minus">{{ r.profit }}円</span>
+            {% else %}
+              <span>0円</span>
+            {% endif %}
           {% else %}
             -
           {% endif %}
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           {% if r.bet_amount %}
-            <b style="
-              {% if r.roi >= 100 %}
-                color:#4caf50;
-              {% else %}
-                color:#f44336;
-              {% endif %}
-            ">
-              {{ r.roi }}%
-            </b>
+            {% if r.roi >= 100 %}
+              <span class="roi-plus">{{ r.roi }}%</span>
+            {% else %}
+              <span class="roi-minus">{{ r.roi }}%</span>
+            {% endif %}
           {% else %}
             -
           {% endif %}
         </td>
 
-        <td style="padding:10px; text-align:center;">
+        <td class="text-center">
           <a href="/race/?race_id={{ r.id }}">見る</a>
         </td>
-
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<p style="color:#888; font-size:14px; margin-top:14px; line-height:1.7;">
-※ 回収率 = 払戻 ÷ 投資 × 100<br>
-※ 収支 = 払戻 − 投資<br>
-※ 同一レースに複数の snapshot がある場合は最新のものを使用しています。
+<div class="history-cards">
+  {% for r in races %}
+  <div class="history-card">
+    <div class="history-card-date">
+      {{ r.race_date }}
+    </div>
+
+    <div class="history-card-title">
+      {{ r.name }}
+    </div>
+
+    <div class="history-card-grid">
+      <div class="history-card-label">前残り期待値1位</div>
+      <div class="history-card-value horse-name">{{ r.honmei }}</div>
+
+      <div class="history-card-label">着順</div>
+      <div class="history-card-value">
+        {% if r.rank %}
+          {{ r.rank }}着
+        {% else %}
+          -
+        {% endif %}
+      </div>
+
+      <div class="history-card-label">投資額</div>
+      <div class="history-card-value">
+        {% if r.bet_amount %}
+          {{ r.bet_amount }}円
+        {% else %}
+          -
+        {% endif %}
+      </div>
+
+      <div class="history-card-label">払戻額</div>
+      <div class="history-card-value">
+        {{ r.return_amount|default:0 }}円
+      </div>
+
+      <div class="history-card-label">収支</div>
+      <div class="history-card-value">
+        {% if r.bet_amount %}
+          {% if r.profit > 0 %}
+            <span class="profit-plus">+{{ r.profit }}円</span>
+          {% elif r.profit < 0 %}
+            <span class="profit-minus">{{ r.profit }}円</span>
+          {% else %}
+            <span>0円</span>
+          {% endif %}
+        {% else %}
+          -
+        {% endif %}
+      </div>
+
+      <div class="history-card-label">回収率</div>
+      <div class="history-card-value">
+        {% if r.bet_amount %}
+          {% if r.roi >= 100 %}
+            <span class="roi-plus">{{ r.roi }}%</span>
+          {% else %}
+            <span class="roi-minus">{{ r.roi }}%</span>
+          {% endif %}
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="history-card-link">
+      <a href="/race/?race_id={{ r.id }}">このレースを見る</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<p class="history-note">
+  ※ 回収率 = 払戻 ÷ 投資 × 100<br>
+  ※ 収支 = 払戻 − 投資<br>
+  ※ 同一レースに複数の snapshot がある場合は最新のものを使用しています。
 </p>
 
 {% else %}
